@@ -1,0 +1,13 @@
+# Raw Kaggle data and large derived/generated data files (regenerate via day1_eda.py /
+# day2_model.py per README "How to Run" — not redistributed here)
+data/*.csv
+
+# Trained model artifact (regenerate via day2_model.py)
+models/*.pkl
+
+# Python
+__pycache__/
+*.pyc
+
+# Local session config (absolute local paths, not portable)
+.claude/

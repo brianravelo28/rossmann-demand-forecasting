@@ -1,0 +1,83 @@
+{
+  "summary_stats": {
+    "Sales": {
+      "count": 844392.0,
+      "mean": 6955.51,
+      "std": 3104.21,
+      "min": 0.0,
+      "25%": 4859.0,
+      "50%": 6369.0,
+      "75%": 8360.0,
+      "max": 41551.0
+    },
+    "Customers": {
+      "count": 844392.0,
+      "mean": 762.73,
+      "std": 401.23,
+      "min": 0.0,
+      "25%": 519.0,
+      "50%": 676.0,
+      "75%": 893.0,
+      "max": 7388.0
+    },
+    "CompetitionDistance": {
+      "count": 844392.0,
+      "mean": 8032.69,
+      "std": 51135.71,
+      "min": 20.0,
+      "25%": 710.0,
+      "50%": 2330.0,
+      "75%": 6910.0,
+      "max": 999999.0
+    }
+  },
+  "null_counts": {
+    "Store": 0,
+    "DayOfWeek": 0,
+    "Date": 0,
+    "Sales": 0,
+    "Customers": 0,
+    "Open": 0,
+    "Promo": 0,
+    "StateHoliday": 0,
+    "SchoolHoliday": 0,
+    "StoreType": 0,
+    "Assortment": 0,
+    "CompetitionDistance": 0,
+    "CompetitionOpenSinceMonth": 0,
+    "CompetitionOpenSinceYear": 0,
+    "Promo2": 0,
+    "Promo2SinceWeek": 423307,
+    "Promo2SinceYear": 423307,
+    "PromoInterval": 423307
+  },
+  "sales_quantiles": {
+    "0.01": 2185.0,
+    "0.25": 4859.0,
+    "0.5": 6369.0,
+    "0.75": 8360.0,
+    "0.99": 17789.0
+  },
+  "promo_lift_pct": 38.77,
+  "mean_sales_by_dow": {
+    "1": 8216.07,
+    "2": 7088.11,
+    "3": 6728.12,
+    "4": 6767.31,
+    "5": 7072.68,
+    "6": 5874.84,
+    "7": 8224.72
+  },
+  "mean_sales_by_holiday": {
+    "0": 6953.52,
+    "a": 8487.47,
+    "b": 9887.89,
+    "c": 9743.75
+  },
+  "rows_open0_removed": 172817,
+  "date_range": [
+    "2013-01-01",
+    "2015-07-31"
+  ],
+  "store_count": 1115
+}

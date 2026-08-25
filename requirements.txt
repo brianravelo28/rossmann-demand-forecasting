@@ -1,0 +1,10 @@
+pandas
+numpy
+lightgbm
+statsmodels
+pmdarima
+plotly
+dash
+scikit-learn
+shap
+matplotlib
