@@ -372,6 +372,9 @@ details.about {{ margin-top: 12px; }}
 details.about summary {{ cursor: pointer; font-weight: 600; color: {INK_2}; }}
 details.about ul {{ margin: 8px 0 0; padding-left: 20px; color: {INK_2}; line-height: 1.55; font-size: 15px; }}
 .dash-dropdown, .dash-dropdown *, .dash-datepicker-input, .DateInput_input, .Select-value-label, .Select-input input {{ font-size: 15px !important; }}
+.controls .dash-options-list-option {{ display: inline-flex !important; align-items: center; gap: 8px; margin: 0 !important; cursor: pointer; font-size: 15px; color: {INK_2}; }}
+.controls .dash-options-list-option-wrapper {{ display: inline-flex; }}
+.controls .dash-options-list-option-checkbox {{ width: 18px; height: 18px; margin: 0; cursor: pointer; }}
 button.primary {{ background: {BLUE}; color: #fff; border: 0; border-radius: 6px; padding: 9px 16px;
   font-size: 15px; font-weight: 600; cursor: pointer; }}
 button.secondary {{ background: {SURFACE}; color: {INK}; border: 1px solid {BORDER}; border-radius: 6px;
@@ -583,17 +586,12 @@ def tab4_layout():
         [
             html.Div(
                 [
-                    html.Div(
-                        [
-                            store_dropdown("t4-stores", value=[1], multi=True, width="420px", options=FORWARD_STORE_OPTIONS),
-                            dcc.Checklist(
-                                id="t4-combine",
-                                options=[{"label": " Combined forecast?", "value": "on"}],
-                                value=[],
-                                style={"marginTop": "8px"},
-                                labelStyle={"display": "inline-flex", "alignItems": "center", "gap": "6px", "fontSize": "15px", "color": INK_2, "marginBottom": "0"},
-                            ),
-                        ]
+                    store_dropdown("t4-stores", value=[1], multi=True, width="420px", options=FORWARD_STORE_OPTIONS),
+                    dcc.Checklist(
+                        id="t4-combine",
+                        options=[{"label": "Combined forecast?", "value": "on"}],
+                        value=[],
+                        style={"paddingBottom": "5px"},
                     ),
                     html.Button("Download CSV", id="t4-download-btn", n_clicks=0, className="secondary"),
                     dcc.Download(id="t4-download"),
