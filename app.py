@@ -773,18 +773,19 @@ def update_tab4(store_ids, combine):
         color = SERIES[i % len(SERIES)]
         fig.add_trace(
             go.Scatter(
-                x=recent["Date"], y=recent["Sales"], mode="lines", name=f"{label} · recent actual",
+                x=recent["Date"], y=recent["Sales"], mode="lines", name=label,
+                legendgroup=label, showlegend=False,
                 line=dict(color=_hex_rgba(color, 0.45), width=2),
             )
         )
-        fig.add_trace(go.Scatter(x=d["Date"], y=d["Upper_PI"], mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"))
+        fig.add_trace(go.Scatter(x=d["Date"], y=d["Upper_PI"], mode="lines", line=dict(width=0), legendgroup=label, showlegend=False, hoverinfo="skip"))
         fig.add_trace(
             go.Scatter(
                 x=d["Date"], y=d["Lower_PI"], mode="lines", line=dict(width=0),
-                fill="tonexty", fillcolor=_hex_rgba(color, 0.14), showlegend=False, hoverinfo="skip",
+                fill="tonexty", fillcolor=_hex_rgba(color, 0.14), legendgroup=label, showlegend=False, hoverinfo="skip",
             )
         )
-        fig.add_trace(go.Scatter(x=d["Date"], y=d["Forecast"], mode="lines", name=f"{label} · forecast", line=dict(color=color, width=2)))
+        fig.add_trace(go.Scatter(x=d["Date"], y=d["Forecast"], mode="lines", name=label, legendgroup=label, line=dict(color=color, width=2)))
     style_fig(fig, f"Forward forecast, {FUTURE_START:%b %d} – {FUTURE_END:%b %d, %Y} (€)")
     fig.update_yaxes(title="Sales (€)")
     return fig
