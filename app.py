@@ -421,10 +421,12 @@ def style_fig(fig, title=None, height=None):
         hovermode="x unified",
         height=height,
     )
-    # Center the legend and spread its entries across the plot width.
-    n_entries = max(1, sum(1 for t in fig.data if t.showlegend is not False))
+    # Center the legend; each entry is sized to its longest label plus a modest fixed gap
+    # (about three spaces) rather than stretched across the plot.
+    names = [t.name for t in fig.data if t.showlegend is not False and t.name]
+    longest = max((len(n) for n in names), default=8)
     fig.update_layout(
-        legend=dict(x=0.5, xanchor="center", entrywidthmode="fraction", entrywidth=min(0.3, 0.9 / n_entries), itemsizing="constant")
+        legend=dict(x=0.5, xanchor="center", entrywidthmode="pixels", entrywidth=8 * longest + 25, itemsizing="constant")
     )
     fig.update_xaxes(gridcolor=GRID, linecolor=BORDER, zeroline=False)
     fig.update_yaxes(gridcolor=GRID, linecolor=BORDER, zeroline=False, tickformat=",", hoverformat=",.2~f", automargin=True)
