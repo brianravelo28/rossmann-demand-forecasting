@@ -788,6 +788,9 @@ def update_tab4(store_ids, combine):
         fig.add_trace(go.Scatter(x=d["Date"], y=d["Forecast"], mode="lines", name=label, legendgroup=label, line=dict(color=color, width=2)))
     style_fig(fig, f"Forward forecast, {FUTURE_START:%b %d} – {FUTURE_END:%b %d, %Y} (€)")
     fig.update_yaxes(title="Sales (€)")
+    # Center the legend and spread its entries across the plot width instead of packing them at the left.
+    n_entries = max(1, sum(1 for t in fig.data if t.showlegend is not False))
+    fig.update_layout(legend=dict(x=0.5, xanchor="center", entrywidthmode="fraction", entrywidth=min(0.3, 0.9 / n_entries), itemsizing="constant"))
     return fig
 
 
