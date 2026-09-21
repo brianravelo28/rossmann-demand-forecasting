@@ -1,5 +1,7 @@
 # Rossmann Demand Forecasting
 
+**Live demo:** https://rossmann-demand-forecasting.onrender.com/ — hosted on Render's free tier, so if it has been idle the first load shows a "starting up" page for up to a minute.
+
 ## Problem Statement
 Rossmann operates 1,115 stores across multiple regions with demand driven by promotions,
 holidays, store type, and competition. Accurate forecasts reduce stockouts and excess inventory.
