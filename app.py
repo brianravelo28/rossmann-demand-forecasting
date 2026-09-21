@@ -13,6 +13,7 @@ import json
 import os
 import pickle
 import sys
+import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,6 +24,21 @@ from dash import Dash, Input, Output, State, dash_table, dcc, html
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
+
+_T0 = time.time()
+
+
+def _log(stage):
+    """Startup progress to stderr (elapsed seconds + resident memory) for the host's logs."""
+    rss = ""
+    try:
+        with open("/proc/self/status") as f:
+            rss = next(l.split()[1] for l in f if l.startswith("VmRSS"))
+            rss = f", {int(rss) // 1024} MB"
+    except (OSError, StopIteration):
+        pass
+    print(f"[app] {stage} ({time.time() - _T0:.1f}s{rss})", file=sys.stderr, flush=True)
+
 
 from features import (
     FEATURE_COLS,
@@ -59,13 +75,16 @@ MAX_FORECAST_STORES = 5
 
 # ---------------------------------------------------------------- load ----
 
+_log("imports done")
 if DEPLOYED:
     import lightgbm as lgb
 
     _booster = lgb.Booster(model_file=str(DEPLOY_DIR / "model.txt"))
 
     def _predict_raw(X):
-        return _booster.predict(X)
+        # One thread: on a small shared CPU, spawning a thread per detected core makes every
+        # (tiny) prediction slower, and the recursive forecast makes dozens of them.
+        return _booster.predict(X, num_threads=1)
 
     predictions_df = pd.read_parquet(DEPLOY_DIR / "predictions.parquet")
     store_meta = pd.read_parquet(DEPLOY_DIR / "store.parquet")
@@ -106,6 +125,7 @@ def predict_sales(X):
     return np.expm1(_predict_raw(X[FEATURE_COLS])).clip(0)
 
 
+_log("data loaded")
 predictions_df["Week"] = predictions_df["Date"].dt.isocalendar().week.astype(int)
 
 store_meta["CompetitionDistance"] = store_meta["CompetitionDistance"].fillna(999999)
@@ -118,7 +138,13 @@ FUTURE_START = test_future["Date"].min()
 FUTURE_END = test_future["Date"].max()
 FUTURE_DAYS = (FUTURE_END - FUTURE_START).days + 1
 
-RAW_BY_STORE = {s: g.sort_values("Date") for s, g in _raw.groupby("Store")}
+_raw = _raw.sort_values(["Store", "Date"]).reset_index(drop=True)
+_store_col = _raw["Store"].to_numpy()
+_cuts = np.flatnonzero(np.diff(_store_col)) + 1
+_starts, _ends = np.r_[0, _cuts], np.r_[_cuts, len(_raw)]
+# Per-store slices are views into one sorted frame (no per-store copies).
+RAW_BY_STORE = {int(_store_col[a]): _raw.iloc[a:b] for a, b in zip(_starts, _ends)}
+_log("history indexed")
 
 # Holiday/promo calendars span history + test.csv's known future calendar, so the
 # distance features can see events scheduled just past the end of the training data.
@@ -139,6 +165,7 @@ PROMO_CAL = pd.concat(
 
 del _raw  # RAW_BY_STORE holds what is still needed
 
+_log("calendars built")
 STORE_IDS = sorted(predictions_df["Store"].unique().tolist())
 STORE_OPTIONS = [{"label": f"Store #{s}", "value": s} for s in STORE_IDS]
 # Kaggle's test.csv only covers a subset of stores; only those have a forward calendar.
@@ -160,6 +187,9 @@ try:
         METRICS = json.load(f)
 except OSError:
     METRICS = {}
+
+
+_log("bands computed")
 
 
 def mape(actual, pred):
@@ -192,6 +222,9 @@ HEATMAP_CLIP = 40
 HEATMAP_SHARE_UNDER_15 = float((_hm.values[~np.isnan(_hm.values)] <= 15).mean() * 100)
 HEATMAP_SHARE_OVER_CLIP = float((_hm.values[~np.isnan(_hm.values)] > HEATMAP_CLIP).mean() * 100)
 HEATMAP_WORST = HEATMAP.mean(axis=1).head(5)
+
+
+_log("heatmap ready")
 
 
 # -------------------------------------------------- promotion simulator ----

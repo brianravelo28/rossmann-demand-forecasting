@@ -55,6 +55,9 @@ def add_event_distance_features(df, event_cal, to_col, since_col, store_col="Sto
     to_next = np.full(len(df), max_days, dtype=float)
     since_last = np.full(len(df), max_days, dtype=float)
 
+    # Only sort the calendars of stores actually present in df (a single-store call used to
+    # re-sort the entire chain's calendar every time).
+    event_cal = event_cal[event_cal[store_col].isin(df[store_col].unique())]
     event_by_store = event_cal.groupby(store_col)[date_col].apply(lambda s: np.sort(s.values))
 
     for store_id, idx in df.groupby(store_col).groups.items():
