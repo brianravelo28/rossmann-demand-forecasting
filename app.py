@@ -114,10 +114,10 @@ PROMO_CAL = pd.concat(
 ).drop_duplicates()
 
 STORE_IDS = sorted(predictions_df["Store"].unique().tolist())
-STORE_OPTIONS = [{"label": f"Store {s}", "value": s} for s in STORE_IDS]
+STORE_OPTIONS = [{"label": f"Store #{s}", "value": s} for s in STORE_IDS]
 # Kaggle's test.csv only covers a subset of stores; only those have a forward calendar.
 FORWARD_STORE_IDS = sorted(set(test_future["Store"]) & set(RAW_BY_STORE))
-FORWARD_STORE_OPTIONS = [{"label": f"Store {s}", "value": s} for s in FORWARD_STORE_IDS]
+FORWARD_STORE_OPTIONS = [{"label": f"Store #{s}", "value": s} for s in FORWARD_STORE_IDS]
 DATE_MIN = predictions_df["Date"].min()
 DATE_MAX = predictions_df["Date"].max()
 
@@ -372,9 +372,11 @@ details.about {{ margin-top: 12px; }}
 details.about summary {{ cursor: pointer; font-weight: 600; color: {INK_2}; }}
 details.about ul {{ margin: 8px 0 0; padding-left: 20px; color: {INK_2}; line-height: 1.55; font-size: 15px; }}
 .dash-dropdown, .dash-dropdown *, .dash-datepicker-input, .DateInput_input, .Select-value-label, .Select-input input {{ font-size: 15px !important; }}
-.controls .dash-options-list-option {{ display: inline-flex !important; align-items: center; gap: 8px; margin: 0 !important; cursor: pointer; font-size: 15px; color: {INK_2}; }}
-.controls .dash-options-list-option-wrapper {{ display: inline-flex; }}
-.controls .dash-options-list-option-checkbox {{ width: 18px; height: 18px; margin: 0; cursor: pointer; }}
+#t4-combine .dash-options-list-option {{ display: inline-flex !important; align-items: center; gap: 8px; margin: 0 !important; cursor: pointer; font-size: 15px; color: {INK_2}; }}
+#t4-combine .dash-options-list-option-wrapper {{ display: inline-flex; }}
+.dash-options-list-option-checkbox {{ width: 18px; height: 18px; margin: 0; cursor: pointer; }}
+.dash-options-list:not(.dash-checklist) .dash-options-list-option {{ display: flex !important; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 8px 12px; margin: 0; cursor: pointer; font-size: 15px; }}
+.dash-options-list:not(.dash-checklist) .dash-options-list-option:hover {{ background: {PAGE_BG}; }}
 button.primary {{ background: {BLUE}; color: #fff; border: 0; border-radius: 6px; padding: 9px 16px;
   font-size: 15px; font-weight: 600; cursor: pointer; }}
 button.secondary {{ background: {SURFACE}; color: {INK}; border: 1px solid {BORDER}; border-radius: 6px;
@@ -522,7 +524,7 @@ def tab1_layout():
 
 
 def tab2_layout():
-    worst = ", ".join(f"Store {s} ({v:.0f}%)" for s, v in HEATMAP_WORST.items())
+    worst = ", ".join(f"Store #{s} ({v:.0f}%)" for s, v in HEATMAP_WORST.items())
     return html.Div(
         [
             html.Div(
@@ -637,7 +639,7 @@ def update_tab1(store_id, start_date, end_date):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=d["Date"], y=d["Sales"], mode="lines", name="Actual", line=dict(color=BLUE, width=2)))
     fig.add_trace(go.Scatter(x=d["Date"], y=d["Predicted"], mode="lines", name="Predicted", line=dict(color=ORANGE, width=2)))
-    style_fig(fig, f"Store {store_id}: predicted vs actual daily sales (€)")
+    style_fig(fig, f"Store #{store_id}: predicted vs actual daily sales (€)")
     fig.update_yaxes(title="Sales (€)")
 
     m = mape(d["Sales"].values, d["Predicted"].values)
@@ -660,7 +662,7 @@ def update_tab2(tab):
             zmax=HEATMAP_CLIP,
             colorscale=[[0, "#f6f1e7"], [0.5, "#f2a37c"], [1, "#a3350f"]],
             colorbar=dict(title=dict(text=f"MAPE % (capped at {HEATMAP_CLIP})", font=dict(size=15)), tickfont=dict(size=15), thickness=14),
-            hovertemplate="Store %{y} · week %{x}<br>MAPE %{z:.1f}%<extra></extra>",
+            hovertemplate="Store #%{y} · week %{x}<br>MAPE %{z:.1f}%<extra></extra>",
             xgap=1,
         )
     )
@@ -726,7 +728,7 @@ def run_simulator(n_clicks, store_id, start_date, end_date, toggle):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=d["Date"], y=scenario_a["ScenarioSales"], mode="lines", name="A · actual promo calendar", line=dict(color=BLUE, width=2)))
     fig.add_trace(go.Scatter(x=d["Date"], y=scenario_b["ScenarioSales"], mode="lines", name=f"B · promo {label} every day", line=dict(color=ORANGE, width=2)))
-    style_fig(fig, f"Store {store_id}: predicted daily sales under each scenario (€)")
+    style_fig(fig, f"Store #{store_id}: predicted daily sales under each scenario (€)")
     fig.update_yaxes(title="Predicted sales (€)")
 
     return kpi_text, table, fig
@@ -756,7 +758,7 @@ def _forecast_view(store_ids, combine):
         sids = [s for s, _, _ in per_store]
         recent = pd.concat([h for _, _, h in per_store]).groupby("Date", as_index=False)["Sales"].sum()
         return [(f"Combined ({len(sids)} stores)", combine_forecasts(fc[fc["Store"].isin(sids)], sids), recent)]
-    return [(f"Store {s}", d, h) for s, d, h in per_store]
+    return [(f"Store #{s}", d, h) for s, d, h in per_store]
 
 
 @app.callback(Output("t4-chart", "figure"), Input("t4-stores", "value"), Input("t4-combine", "value"))
