@@ -131,13 +131,27 @@ above and Limitations below.
 ## Dashboard
 Interactive Plotly Dash app with 4 tabs:
 
-1. **Forecast vs Actual**: Per-store forecast performance with KPIs (MAPE, RMSE, % within ±25%)
-2. **MAPE Heatmap**: MAPE by store and ISO week (diagnostic: identify problem areas)
-3. **Promotion Simulator**: Toggle promotion on/off for a store + date range, see predicted demand delta
-4. **8-Week Forward Forecast**: Forecast for Aug–Sep 2015 with ±95% PI band, CSV export
+A header shows the headline metrics (read from `day2_metrics.json`) and an "About this model" note.
 
-All 4 tabs verified working in-browser (Store dropdown, date range, heatmap, scenario simulator,
-forward forecast + download all tested end-to-end).
+1. **Forecast vs Actual**: One-step-ahead predictions per store on the Jan–Jul 2015 holdout, with
+   KPIs (MAPE, RMSE in €, % within ±25%).
+2. **Error Heatmap**: MAPE by store × ISO week. Stores are sorted by average error (worst on top) and
+   the color scale is capped at 40% so the typical range stays readable; hover gives exact values.
+3. **Promotion Simulator**: Force promotion on/off across a date range for a store; the promo-timing
+   features are recomputed to match, and the sales-lag features keep their actual values.
+4. **Forward Forecast (48 days)**: Recursive day-by-day forecast for Aug 1 – Sep 17, 2015 (the
+   calendar in Kaggle's `test.csv`, which covers 856 of the 1,115 stores). Pick up to 5 stores,
+   shown individually by default, or tick **Combined forecast?** for their summed total. CSV export.
+
+**How the forward forecast works.** Each open day is predicted, and that prediction is written back
+into a per-date sales buffer so later days' `Sales_lag_*` / `Sales_rolling_*` features are computed
+exactly as in training (calendar-day offsets, closed days = 0) — but from the model's own earlier
+forecasts. Promotions and holidays come from the known `test.csv` calendar. *Backtest:* started on
+Jul 1 2015 for 150 random stores and scored against actuals, this recursive procedure gets **10.5%
+MAPE vs 8.9% one-step-ahead** on the same days — a real but modest cost, with no blow-up over the
+month (7-day buckets: 11.0 / 9.3 / 10.0 / 11.4%). Bands are ±1.96σ of log-error on the holdout (for
+the combined total, measured on the actual summed sales, so offsetting store errors are reflected);
+they don't widen with horizon, so treat them as a lower bound on the true uncertainty.
 
 ## How to Run
 Raw and derived data files aren't tracked in this repo (Kaggle competition data + ~145MB of
@@ -159,11 +173,11 @@ python app.py
 ```
 
 ## Limitations & Future Work
-1. **Forward-forecast lags**: Future lag/rolling features (Tab 4) are proxied with the store's
-   most recent 7-day sales average rather than iterated day-by-day — a real production system
-   would forecast recursively, feeding each day's prediction into the next day's lag features.
-2. **New stores**: no historical data → lag features fall back to 0 (or in Tab 4, to the recent
-   average); a store-type aggregate would be a better cold-start estimate.
+1. ~~Forward-forecast lags proxied with a constant~~ — **fixed**: Tab 4 now forecasts recursively
+   (see Dashboard). Remaining gap: forward bands don't widen with horizon, and only the 856 stores
+   in Kaggle's `test.csv` have a forward calendar.
+2. **New stores**: no historical data → lag features fall back to 0; a store-type aggregate would
+   be a better cold-start estimate.
 3. ~~Trend extrapolation: `DaysSinceStart` is a linear counter a tree model can't extrapolate past
    its training range~~ — **fixed** (see item 10 below): removed from the model entirely rather
    than replaced, since it turned out to be net harmful once actually measured.
@@ -174,8 +188,8 @@ python app.py
    history (missing days, not just Sundays), so the row-shift version was drifting off the true
    N-days-ago value for ~16% of stores. Fixing it dropped final-test MAPE from 18.0% → **13.5%**
    and pushed % within ±25% from 73% → **87%**.
-5. **Prediction intervals**: Tab 4's ±95% PI band uses a simple ±1.96×(historical residual std)
-   per store rather than a proper quantile/conformal method.
+5. **Prediction intervals**: Tab 4's ±95% band uses ±1.96σ of the holdout log-error rather than a
+   proper quantile/conformal method, and is constant across the forecast horizon.
 6. ~~Feature scope: promo-interval / days-since/until-next-promo~~ — **fixed**: added
    `IsPromo2Active` (recurring Promo2 program, derived from `Promo2SinceWeek/Year` +
    `PromoInterval`) and `DaysToNextPromo`/`DaysSinceLastPromo` (calendar-day distance on the
