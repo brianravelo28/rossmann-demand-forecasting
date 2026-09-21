@@ -6,9 +6,9 @@ shared-CPU instance. Hosts like Render mark a deploy failed if nothing answers H
 quickly, so this wrapper answers right away (health check + a "loading" page) and
 imports the real app in a background thread, then hands requests over.
 
-The loader is started per *process* (keyed on os.getpid()): a thread started before a
-fork does not exist in the child, so relying on import-time startup alone can leave a
-worker serving the loading page forever.
+The loader is started per *process*, lazily on the first request (keyed on os.getpid()) -
+never at import time, because gunicorn's master imports this module and then forks the
+worker, and forking while a thread is mid-import deadlocks the child.
 """
 import json
 import os
@@ -61,7 +61,10 @@ def _rss_mb():
         return None
 
 
-_ensure_loader()
+# No thread is started at import time: gunicorn's master imports this module and then forks
+# the worker, and a loader thread caught mid-import at that moment leaves the child holding
+# import locks that nothing will ever release (a deadlock). The first request in the worker
+# (Render's health check arrives within seconds) starts the loader instead.
 
 
 def application(environ, start_response):
