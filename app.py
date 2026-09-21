@@ -358,23 +358,24 @@ CSS = f"""
 :root {{ color-scheme: light; }}
 body {{ margin: 0; background: {PAGE_BG}; color: {INK};
   font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }}
-.wrap {{ max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }}
+.wrap {{ font-size: 15px; max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }}
 .card {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 10px; padding: 16px 18px; }}
 .kpi-row {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }}
 .kpi {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 10px; padding: 12px 16px; }}
-.kpi .v {{ font-size: 26px; font-weight: 650; letter-spacing: -0.01em; }}
-.kpi .l {{ font-size: 12px; color: {INK_2}; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }}
-.kpi .s {{ font-size: 12px; color: {INK_3}; margin-top: 2px; }}
+.kpi .v {{ font-size: 28px; font-weight: 650; letter-spacing: -0.01em; }}
+.kpi .l {{ font-size: 15px; color: {INK_2}; margin-bottom: 2px; }}
+.kpi .s {{ font-size: 15px; color: {INK_3}; margin-top: 2px; }}
 .controls {{ display: flex; flex-wrap: wrap; gap: 16px 20px; align-items: flex-end; }}
-.controls label {{ display: block; font-size: 12px; color: {INK_2}; margin-bottom: 4px; }}
-.note {{ font-size: 13px; color: {INK_2}; line-height: 1.5; margin: 10px 2px 0; }}
+.controls label {{ display: block; font-size: 15px; color: {INK_2}; margin-bottom: 4px; }}
+.note {{ font-size: 15px; color: {INK_2}; line-height: 1.5; margin: 10px 2px 0; }}
 details.about {{ margin-top: 12px; }}
 details.about summary {{ cursor: pointer; font-weight: 600; color: {INK_2}; }}
-details.about ul {{ margin: 8px 0 0; padding-left: 20px; color: {INK_2}; line-height: 1.55; font-size: 14px; }}
+details.about ul {{ margin: 8px 0 0; padding-left: 20px; color: {INK_2}; line-height: 1.55; font-size: 15px; }}
+.dash-dropdown, .dash-dropdown *, .dash-datepicker-input, .DateInput_input, .Select-value-label, .Select-input input {{ font-size: 15px !important; }}
 button.primary {{ background: {BLUE}; color: #fff; border: 0; border-radius: 6px; padding: 9px 16px;
-  font-size: 14px; font-weight: 600; cursor: pointer; }}
+  font-size: 15px; font-weight: 600; cursor: pointer; }}
 button.secondary {{ background: {SURFACE}; color: {INK}; border: 1px solid {BORDER}; border-radius: 6px;
-  padding: 8px 14px; font-size: 14px; cursor: pointer; }}
+  padding: 8px 14px; font-size: 15px; cursor: pointer; }}
 """
 
 app = Dash(__name__)
@@ -405,17 +406,18 @@ def kpi(label, value, sub=None):
 def style_fig(fig, title=None, height=None):
     fig.update_layout(
         template="plotly_white",
-        title=dict(text=title, x=0, font=dict(size=15, color=INK)) if title else None,
+        title=dict(text=title, x=0, font=dict(size=17, color=INK)) if title else None,
         paper_bgcolor=SURFACE,
         plot_bgcolor=SURFACE,
-        font=dict(color=INK_2, size=12),
-        margin=dict(l=56, r=20, t=56 if title else 30, b=96),
+        font=dict(color=INK_2, size=15),
+        hoverlabel=dict(font_size=15),
+        margin=dict(l=76, r=20, t=60 if title else 30, b=110),
         legend=dict(orientation="h", y=-0.2, x=0, xanchor="left", yanchor="top", font=dict(color=INK_2)),
         hovermode="x unified",
         height=height,
     )
     fig.update_xaxes(gridcolor=GRID, linecolor=BORDER, zeroline=False)
-    fig.update_yaxes(gridcolor=GRID, linecolor=BORDER, zeroline=False, tickformat=",")
+    fig.update_yaxes(gridcolor=GRID, linecolor=BORDER, zeroline=False, tickformat=",", automargin=True)
     return fig
 
 
@@ -462,7 +464,7 @@ def header():
     )
 
 
-TAB_STYLE = {"padding": "10px 14px", "border": f"1px solid {BORDER}", "backgroundColor": PAGE_BG, "color": INK_2, "fontWeight": "500"}
+TAB_STYLE = {"padding": "10px 14px", "fontSize": "15px", "border": f"1px solid {BORDER}", "backgroundColor": PAGE_BG, "color": INK_2, "fontWeight": "500"}
 TAB_SELECTED = {**TAB_STYLE, "backgroundColor": SURFACE, "color": INK, "fontWeight": "650", "borderTop": f"2px solid {BLUE}"}
 
 app.layout = html.Div(
@@ -589,7 +591,7 @@ def tab4_layout():
                                 options=[{"label": " Combined forecast?", "value": "on"}],
                                 value=[],
                                 style={"marginTop": "8px"},
-                                labelStyle={"display": "inline-flex", "alignItems": "center", "gap": "6px", "fontSize": "14px", "color": INK_2, "marginBottom": "0"},
+                                labelStyle={"display": "inline-flex", "alignItems": "center", "gap": "6px", "fontSize": "15px", "color": INK_2, "marginBottom": "0"},
                             ),
                         ]
                     ),
@@ -659,13 +661,13 @@ def update_tab2(tab):
             zmin=0,
             zmax=HEATMAP_CLIP,
             colorscale=[[0, "#f6f1e7"], [0.5, "#f2a37c"], [1, "#a3350f"]],
-            colorbar=dict(title=f"MAPE % (capped at {HEATMAP_CLIP})", thickness=12),
+            colorbar=dict(title=dict(text=f"MAPE % (capped at {HEATMAP_CLIP})", font=dict(size=15)), tickfont=dict(size=15), thickness=14),
             hovertemplate="Store %{y} · week %{x}<br>MAPE %{z:.1f}%<extra></extra>",
             xgap=1,
         )
     )
     style_fig(fig, None)
-    fig.update_layout(hovermode="closest", margin=dict(l=56, r=20, t=10, b=48))
+    fig.update_layout(hovermode="closest", margin=dict(l=60, r=20, t=10, b=64))
     fig.update_xaxes(title="ISO week of 2015", dtick=2, showgrid=False)
     fig.update_yaxes(
         title="Stores — highest average error at top",
@@ -719,8 +721,8 @@ def run_simulator(n_clicks, store_id, start_date, end_date, toggle):
     table = dash_table.DataTable(
         data=table_df.to_dict("records"),
         columns=[{"name": c, "id": c} for c in table_df.columns],
-        style_cell={"textAlign": "left", "padding": "8px 12px", "backgroundColor": SURFACE, "color": INK, "border": f"1px solid {BORDER}"},
-        style_header={"fontWeight": "600", "backgroundColor": PAGE_BG, "color": INK_2},
+        style_cell={"textAlign": "left", "padding": "10px 14px", "fontSize": "15px", "backgroundColor": SURFACE, "color": INK, "border": f"1px solid {BORDER}"},
+        style_header={"fontSize": "15px", "fontWeight": "600", "backgroundColor": PAGE_BG, "color": INK_2},
     )
 
     fig = go.Figure()
