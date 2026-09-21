@@ -1,0 +1,11 @@
+# Render Blueprint: New + -> Blueprint -> pick this repo.
+services:
+  - type: web
+    name: rossmann-demand-forecasting
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-render.txt
+    startCommand: gunicorn app:server --workers 1 --threads 2 --timeout 180 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9

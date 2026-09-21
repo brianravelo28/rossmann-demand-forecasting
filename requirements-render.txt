@@ -1,0 +1,9 @@
+# Runtime dependencies for the hosted dashboard (no training stack: no statsmodels,
+# pmdarima, shap, matplotlib or scikit-learn — the model ships as a LightGBM text file).
+pandas==2.0.3
+numpy==1.24.3
+pyarrow==21.0.0
+lightgbm==4.6.0
+plotly==5.14.0
+dash==4.4.0
+gunicorn==23.0.0

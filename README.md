@@ -16,11 +16,11 @@ ARIMA assumes stationarity and linear dependencies but fails on retail data:
 - **Scale**: a single LightGBM model serves all 1,115 stores; ARIMA needs a separate fit per store
 
 **ARIMA baseline (Store #1 only)**: 17.2% MAPE
-**LightGBM (CV mean, all stores)**: 10.1% MAPE
+**LightGBM (CV mean, all stores)**: 10.0% MAPE
 **LightGBM (final holdout, all stores)**: 9.2% MAPE
-**LightGBM (Store #1 only, same period as ARIMA)**: 9.1% MAPE
+**LightGBM (Store #1 only, same period as ARIMA)**: 9.0% MAPE
 
-On Store #1 specifically, LightGBM (9.1% MAPE) clearly beats ARIMA (17.2%) — nearly halving its
+On Store #1 specifically, LightGBM (9.0% MAPE) clearly beats ARIMA (17.2%) — nearly halving its
 error — and it does so while simultaneously serving all 1,115 stores' non-linear
 promotion/holiday effects from a **single model** instead of 1,115 separate per-store fits.
 
@@ -78,7 +78,7 @@ promotion/holiday effects from a **single model** instead of 1,115 separate per-
   2014, validate Jul–Sep 2014) that leaf happened to encode H1 2014's relatively elevated sales
   level, so the model systematically over-predicted the Q3 seasonal dip by +14.8% on average.
   Dropping the feature fixed Fold 3 specifically (16.4% → 8.9% MAPE) and, more importantly,
-  improved every other fold too (CV mean 13.6% → 10.1%) — it turned out to be net harmful
+  improved every other fold too (CV mean 13.6% → 10.0%) — it turned out to be net harmful
   everywhere, not just somewhere this happened to be visible. It's still computed as a DataFrame
   column (useful for EDA) but is not passed to the model.
 
@@ -87,20 +87,20 @@ promotion/holiday effects from a **single model** instead of 1,115 separate per-
 ### Walk-Forward Cross-Validation (4 folds)
 | Fold | Train Period | Validation Period | MAPE | RMSE | MAE |
 |------|--------------|-------------------|------|------|-----|
-| 1 | 2013 | Q1 2014 | 10.61% | 1055.0 | 668.3 |
-| 2 | 2013–Q1'14 | Q2 2014 | 9.86% | 1004.6 | 683.1 |
-| 3 | 2013–Q2'14 | Q3 2014 | 8.90% | 899.8 | 596.7 |
-| 4 | 2013–Q3'14 | Q4 2014 | 11.09% | 1291.8 | 803.7 |
-| **Mean** | — | — | **10.11%** | **1062.8** | **687.9** |
+| 1 | 2013 | Q1 2014 | 10.67% | 1055.3 | 670.2 |
+| 2 | 2013–Q1'14 | Q2 2014 | 9.51% | 978.2 | 661.4 |
+| 3 | 2013–Q2'14 | Q3 2014 | 8.88% | 900.6 | 595.3 |
+| 4 | 2013–Q3'14 | Q4 2014 | 11.09% | 1293.4 | 805.1 |
+| **Mean** | — | — | **10.04%** | **1056.9** | **683.0** |
 
 ### Final Test Set (Jan–Jul 2015, unseen)
 - **MAPE**: 9.15%
-- **RMSE**: 917.9
+- **RMSE**: 912.5
 - **% predictions within ±25%**: 95.9%
 
 Interpretation: 96% of forecasts land within 25% of actual sales, and final-test MAPE (9.2%) is
 now comfortably past the original target range on every metric. Fold 3 (Q3 2014) — previously the
-weakest fold at 16.36% MAPE — is now the *strongest* at 8.90%. Root cause: it had a systematic
+weakest fold at 16.36% MAPE — is now the *strongest* at 8.88%. Root cause: it had a systematic
 +14.8% over-prediction bias traced to `DaysSinceStart`, a linear trend feature the model couldn't
 extrapolate correctly past its training range (every fold's validation window is past that range,
 by construction). Removing it fixed Fold 3 and improved every other fold too — see the Feature
@@ -111,10 +111,10 @@ Fold 4 (18.57%, pre-holiday-features) were.
 ## Feature Importance (SHAP)
 Top 5 features by mean |SHAP value| (log-sales scale, since the model predicts log1p(Sales)):
 1. Sales_lag_14: 0.098
-2. DaysToNextPromo: 0.069
-3. Sales_rolling_7d: 0.059
-4. Sales_rolling_30d: 0.056
-5. Sales_lag_1: 0.047
+2. DaysToNextPromo: 0.066
+3. Sales_rolling_7d: 0.062
+4. Sales_rolling_30d: 0.054
+5. Sales_lag_1: 0.048
 
 `DaysToNextPromo` still ranks 2nd, ahead of `Promo_active` — a continuous "how many days until
 the next promo" signal captures more of the promo effect than a same-day binary flag alone.
@@ -154,8 +154,17 @@ the combined total, measured on the actual summed sales, so offsetting store err
 they don't widen with horizon, so treat them as a lower bound on the true uncertainty.
 
 ## How to Run
-Raw and derived data files aren't tracked in this repo (Kaggle competition data + ~145MB of
-generated CSVs) — regenerate them locally:
+**Quickest (no Kaggle download):** the repo ships `deploy_data/`, a compact (~9.5 MB) copy of
+everything the dashboard needs — the full daily history, the Jan–Jul 2015 holdout with
+predictions and features, the Aug–Sep 2015 calendar, store attributes, and the trained model.
+
+```bash
+pip install -r requirements-render.txt
+python app.py
+# Navigate to http://localhost:8050
+```
+
+**Full pipeline (regenerate everything from the raw Kaggle files):**
 
 ```bash
 pip install -r requirements.txt
@@ -166,11 +175,23 @@ pip install -r requirements.txt
 python day1_eda.py    # -> data/train_processed.csv, eda_summary.json, store1_*.html
 python day2_model.py  # -> models/lightgbm_model.pkl, data/test_predictions.csv, cv_results.csv
 python day3_shap.py   # -> shap_feature_importance.csv, shap_*.png
+python build_deploy_data.py   # -> deploy_data/ (optional; refreshes the compact bundle)
 
-# 3. Launch the dashboard
+# 3. Launch the dashboard (uses deploy_data/ if present; set ROSSMANN_USE_LOCAL_DATA=1
+#    to force the full data/ + models/ files instead)
 python app.py
-# Navigate to http://localhost:8050
 ```
+
+Data: *Rossmann Store Sales*, provided by Dirk Rossmann GmbH via Kaggle
+([competition page](https://www.kaggle.com/c/rossmann-store-sales)).
+
+## Deployment (Render)
+`render.yaml` defines a free-tier web service that installs `requirements-render.txt` (runtime
+dependencies only — no training stack) and serves the app with gunicorn. In Render:
+**New + → Blueprint →** select this repository. The dashboard reads only `deploy_data/`, so the
+service needs no data download or training step. Notes: the free tier has 512 MB of RAM (the app
+uses roughly 350 MB) and sleeps after ~15 minutes idle, so the first request after a pause takes
+a while; a paid instance removes both limits.
 
 ## Limitations & Future Work
 1. ~~Forward-forecast lags proxied with a constant~~ — **fixed**: Tab 4 now forecasts recursively
@@ -221,27 +242,26 @@ python app.py
     training date range, so this linear trend feature was *always* extrapolating — for Fold 3
     specifically, the model's rightmost leaf apparently encoded H1 2014's elevated sales level
     and misapplied it to Q3's seasonal dip. Removing the feature (see Feature Engineering above)
-    fixed Fold 3 (16.36% → 8.90%, now the *best* fold) and every other fold too (CV mean 13.58% →
-    10.11%). Lesson: a feature ranking 3rd in SHAP importance was still net harmful — SHAP
+    fixed Fold 3 (16.36% → 8.88%, now the *best* fold) and every other fold too (CV mean 13.58% →
+    10.04%). Lesson: a feature ranking 3rd in SHAP importance was still net harmful — SHAP
     magnitude says how much a feature moves predictions, not whether the move is correct, so it's
     not a substitute for ablation when a specific fold or period looks anomalous.
 
 ## Files
 ```
 Rossmann Project/
-├── data/
-│   ├── train.csv, test.csv, store.csv (raw Kaggle)
-│   ├── train_processed.csv (cleaned, Day 1)
-│   ├── test_predictions.csv (actual vs predicted, Day 2)
-├── models/
-│   └── lightgbm_model.pkl (predicts log1p(Sales) — invert with expm1)
+├── data/                     (raw Kaggle CSVs + generated files; not tracked)
+├── models/                   (lightgbm_model.pkl; not tracked)
+├── deploy_data/              compact bundle the dashboard loads (parquet + model.txt)
+├── features.py               shared feature definitions + event-distance helpers
 ├── day1_eda.py, day2_model.py, day3_shap.py
-├── app.py (Dash app)
+├── build_deploy_data.py      builds deploy_data/ from the pipeline outputs
+├── app.py                    Dash dashboard
+├── render.yaml, requirements-render.txt   Render deployment
 ├── eda_summary.json, cv_results.csv, day2_metrics.json, shap_feature_importance.csv
-├── store1_timeseries.html, store1_acf_pacf.html, arima_baseline.html
 ├── shap_feature_importance_bar.png, shap_summary_beeswarm.png
 ├── README.md (this file)
-└── requirements.txt
+└── requirements.txt          full (training) dependencies
 ```
 
 ## Learnings

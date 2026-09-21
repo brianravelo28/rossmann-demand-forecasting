@@ -10,6 +10,7 @@ Tabs:
 Run: python app.py  ->  http://localhost:8050
 """
 import json
+import os
 import pickle
 import sys
 from functools import lru_cache
@@ -23,7 +24,7 @@ from dash import Dash, Input, Output, State, dash_table, dcc, html
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from day2_model import (
+from features import (
     FEATURE_COLS,
     STORE_TYPES,
     ASSORTMENTS,
@@ -34,12 +35,13 @@ from day2_model import (
     add_promo2_active_feature,
 )
 
-MODEL_PATH = BASE_DIR / "models/lightgbm_model.pkl"
-PRED_PATH = BASE_DIR / "data/test_predictions.csv"
-TEST_PATH = BASE_DIR / "data/test.csv"
-STORE_PATH = BASE_DIR / "data/store.csv"
-TRAIN_RAW_PATH = BASE_DIR / "data/train.csv"
-METRICS_PATH = BASE_DIR / "day2_metrics.json"
+# Deployed builds ship a slim bundle in deploy_data/ (see build_deploy_data.py); local
+# development falls back to the full data/ + models/ produced by the pipeline scripts.
+DEPLOY_DIR = BASE_DIR / "deploy_data"
+DEPLOYED = (DEPLOY_DIR / "predictions.parquet").exists() and os.environ.get("ROSSMANN_USE_LOCAL_DATA") != "1"
+# Distance features are clipped at 30 days, so history before Nov 2014 can't affect any
+# 2015 prediction; keeping only the tail also keeps memory low.
+HISTORY_START = pd.Timestamp("2014-11-01")
 
 # Design tokens (light surface; validated categorical slots 1-3 from the reference palette)
 SURFACE = "#fcfcfb"
@@ -57,43 +59,65 @@ MAX_FORECAST_STORES = 5
 
 # ---------------------------------------------------------------- load ----
 
-with open(MODEL_PATH, "rb") as f:
-    model = pickle.load(f)
+if DEPLOYED:
+    import lightgbm as lgb
+
+    _booster = lgb.Booster(model_file=str(DEPLOY_DIR / "model.txt"))
+
+    def _predict_raw(X):
+        return _booster.predict(X)
+
+    predictions_df = pd.read_parquet(DEPLOY_DIR / "predictions.parquet")
+    store_meta = pd.read_parquet(DEPLOY_DIR / "store.parquet")
+    test_future = pd.read_parquet(DEPLOY_DIR / "test.parquet")
+    _raw = pd.read_parquet(DEPLOY_DIR / "history.parquet", filters=[("Date", ">=", HISTORY_START)])
+    METRICS_PATH = DEPLOY_DIR / "day2_metrics.json"
+else:
+    with open(BASE_DIR / "models/lightgbm_model.pkl", "rb") as f:
+        _model = pickle.load(f)
+
+    def _predict_raw(X):
+        return _model.predict(X)
+
+    predictions_df = pd.read_csv(
+        BASE_DIR / "data/test_predictions.csv",
+        usecols=["Store", "Date", "Sales", "Predicted"] + FEATURE_COLS,
+        low_memory=False,
+    )
+    predictions_df["Date"] = pd.to_datetime(predictions_df["Date"])
+    store_meta = pd.read_csv(BASE_DIR / "data/store.csv")
+    test_future = pd.read_csv(BASE_DIR / "data/test.csv", dtype={"StateHoliday": str}, low_memory=False)
+    test_future["Date"] = pd.to_datetime(test_future["Date"])
+    # Full raw history (closed days included: they are real zero-sales days the model's
+    # calendar-aligned lags were trained on).
+    _raw = pd.read_csv(
+        BASE_DIR / "data/train.csv",
+        dtype={"StateHoliday": str},
+        usecols=["Store", "Date", "Sales", "Open", "Promo", "StateHoliday", "SchoolHoliday", "DayOfWeek"],
+        low_memory=False,
+    )
+    _raw["Date"] = pd.to_datetime(_raw["Date"])
+    _raw = _raw[_raw["Date"] >= HISTORY_START]
+    METRICS_PATH = BASE_DIR / "day2_metrics.json"
 
 
 def predict_sales(X):
     """Model predicts log1p(Sales); invert to real sales scale."""
-    return np.expm1(model.predict(X)).clip(0)
+    return np.expm1(_predict_raw(X[FEATURE_COLS])).clip(0)
 
 
-predictions_df = pd.read_csv(
-    PRED_PATH, usecols=["Store", "Date", "Sales", "Predicted"] + FEATURE_COLS, low_memory=False
-)
-predictions_df["Date"] = pd.to_datetime(predictions_df["Date"])
 predictions_df["Week"] = predictions_df["Date"].dt.isocalendar().week.astype(int)
 
-store_meta = pd.read_csv(STORE_PATH)
 store_meta["CompetitionDistance"] = store_meta["CompetitionDistance"].fillna(999999)
 store_meta["CompetitionOpenSinceMonth"] = store_meta["CompetitionOpenSinceMonth"].fillna(1)
 store_meta["CompetitionOpenSinceYear"] = store_meta["CompetitionOpenSinceYear"].fillna(2000)
 STORE_META = store_meta.set_index("Store")
 
-test_future = pd.read_csv(TEST_PATH, dtype={"StateHoliday": str}, low_memory=False)
-test_future["Date"] = pd.to_datetime(test_future["Date"])
 test_future["Open"] = test_future["Open"].fillna(1)
 FUTURE_START = test_future["Date"].min()
 FUTURE_END = test_future["Date"].max()
 FUTURE_DAYS = (FUTURE_END - FUTURE_START).days + 1
 
-# Full raw history (closed days included: they are real zero-sales days the model's
-# calendar-aligned lags were trained on).
-_raw = pd.read_csv(
-    TRAIN_RAW_PATH,
-    dtype={"StateHoliday": str},
-    usecols=["Store", "Date", "Sales", "Open", "Promo", "StateHoliday", "SchoolHoliday", "DayOfWeek"],
-    low_memory=False,
-)
-_raw["Date"] = pd.to_datetime(_raw["Date"])
 RAW_BY_STORE = {s: g.sort_values("Date") for s, g in _raw.groupby("Store")}
 
 # Holiday/promo calendars span history + test.csv's known future calendar, so the
@@ -113,6 +137,8 @@ PROMO_CAL = pd.concat(
     ignore_index=True,
 ).drop_duplicates()
 
+del _raw  # RAW_BY_STORE holds what is still needed
+
 STORE_IDS = sorted(predictions_df["Store"].unique().tolist())
 STORE_OPTIONS = [{"label": f"Store #{s}", "value": s} for s in STORE_IDS]
 # Kaggle's test.csv only covers a subset of stores; only those have a forward calendar.
@@ -123,10 +149,11 @@ DATE_MAX = predictions_df["Date"].max()
 
 # Per-store std of log-error on the holdout, for forecast bands (multiplicative, so
 # bands scale with the store's sales level).
-_nz = predictions_df[predictions_df["Sales"] > 0]
+_nz = predictions_df.loc[predictions_df["Sales"] > 0, ["Store", "Sales", "Predicted"]]
 _log_err = np.log1p(_nz["Sales"]) - np.log1p(_nz["Predicted"])
 GLOBAL_LOG_SIGMA = float(_log_err.std())
 STORE_LOG_SIGMA = _log_err.groupby(_nz["Store"]).std().to_dict()
+del _nz, _log_err
 
 try:
     with open(METRICS_PATH) as f:
@@ -155,10 +182,11 @@ def within_pct(actual, pred, tol=0.25):
 
 # ------------------------------------------------------- tab2 precompute ----
 
-_ape = predictions_df[predictions_df["Sales"] > 0].copy()
+_ape = predictions_df.loc[predictions_df["Sales"] > 0, ["Store", "Week", "Sales", "Predicted"]].copy()
 _ape["ape"] = (_ape["Sales"] - _ape["Predicted"]).abs() / _ape["Sales"] * 100
 _hm = _ape.groupby(["Store", "Week"])["ape"].mean().unstack()
 _hm = _hm.loc[_hm.mean(axis=1).sort_values(ascending=False).index]  # worst stores on top
+del _ape
 HEATMAP = _hm
 HEATMAP_CLIP = 40
 HEATMAP_SHARE_UNDER_15 = float((_hm.values[~np.isnan(_hm.values)] <= 15).mean() * 100)
@@ -385,6 +413,7 @@ button.secondary {{ background: {SURFACE}; color: {INK}; border: 1px solid {BORD
 
 app = Dash(__name__)
 app.title = "Rossmann Demand Forecasting"
+server = app.server  # WSGI entry point for gunicorn (Render)
 app.index_string = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -465,6 +494,7 @@ def header():
                             html.Li("Validated with 4 expanding-window folds across 2014, then a final holdout (Jan–Jul 2015) the model never saw."),
                             html.Li("Tabs 1–3 show one-step-ahead predictions: each day is predicted knowing the real sales of the days before it. Tab 4 has no real sales to lean on, so it forecasts recursively, feeding its own predictions forward — expect it to be less accurate than the headline numbers."),
                             html.Li("Sales are in euros. Closed days are excluded from accuracy metrics."),
+                            html.Li("Built on the Kaggle Rossmann Store Sales data (Dirk Rossmann GmbH, 2015): daily sales for 1,115 German drugstores, Jan 2013 – Jul 2015."),
                         ]
                     ),
                 ],
