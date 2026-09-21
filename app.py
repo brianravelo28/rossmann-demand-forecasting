@@ -417,7 +417,7 @@ def style_fig(fig, title=None, height=None):
         height=height,
     )
     fig.update_xaxes(gridcolor=GRID, linecolor=BORDER, zeroline=False)
-    fig.update_yaxes(gridcolor=GRID, linecolor=BORDER, zeroline=False, tickformat=",", automargin=True)
+    fig.update_yaxes(gridcolor=GRID, linecolor=BORDER, zeroline=False, tickformat=",", hoverformat=",.2~f", automargin=True)
     return fig
 
 
@@ -802,6 +802,7 @@ def download_tab4(n_clicks, store_ids, combine):
     frames = [d.assign(Store=label)[["Date", "Store", "Forecast", "Upper_PI", "Lower_PI"]]
               for label, d, _ in _forecast_view(store_ids, bool(combine))]
     out = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=["Date", "Store", "Forecast", "Upper_PI", "Lower_PI"])
+    out = out.round({"Forecast": 2, "Upper_PI": 2, "Lower_PI": 2})
     return dcc.send_data_frame(out.to_csv, "forward_forecast.csv", index=False)
 
 
