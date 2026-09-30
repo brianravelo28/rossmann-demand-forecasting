@@ -445,14 +445,14 @@ button.secondary {{ background: {SURFACE}; color: {INK}; border: 1px solid {BORD
 .chart-hint {{ margin: 4px 2px 0; color: {INK_3}; font-size: 15px; font-style: italic; }}
 """
 
-CHART_HINT = (
-    "Drag to zoom into part of the chart; double-click the chart to reset the view. "
-    "Click a legend entry to hide that series; double-click it to isolate it."
-)
+CHART_HINT_ZOOM = "Drag to zoom into part of the chart; double-click the chart to reset the view."
+CHART_HINT_LEGEND = " Click a legend entry to hide that series; double-click it to isolate it."
 
 
-def chart_hint():
-    return html.P(CHART_HINT, className="chart-hint")
+def chart_hint(legend=True):
+    """`legend=False` for single-trace charts (e.g. the heatmap) that don't show one."""
+    text = CHART_HINT_ZOOM + (CHART_HINT_LEGEND if legend else "")
+    return html.P(text, className="chart-hint")
 
 app = Dash(__name__)
 app.title = "Rossmann Demand Forecasting"
@@ -616,7 +616,7 @@ def tab2_layout():
                         style={"margin": "0 0 8px"},
                     ),
                     dcc.Graph(id="t2-heatmap", style={"height": "640px"}, config={"displayModeBar": False}),
-                    chart_hint(),
+                    chart_hint(legend=False),
                 ],
                 className="card",
             ),
