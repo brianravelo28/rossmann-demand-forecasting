@@ -442,7 +442,17 @@ button.primary {{ background: {BLUE}; color: #fff; border: 0; border-radius: 6px
   font-size: 15px; font-weight: 600; cursor: pointer; }}
 button.secondary {{ background: {SURFACE}; color: {INK}; border: 1px solid {BORDER}; border-radius: 6px;
   padding: 8px 14px; font-size: 15px; cursor: pointer; }}
+.chart-hint {{ margin: 4px 2px 0; color: {INK_3}; font-size: 15px; font-style: italic; }}
 """
+
+CHART_HINT = (
+    "Drag to zoom into part of the chart; double-click the chart to reset the view. "
+    "Click a legend entry to hide that series; double-click it to isolate it."
+)
+
+
+def chart_hint():
+    return html.P(CHART_HINT, className="chart-hint")
 
 app = Dash(__name__)
 app.title = "Rossmann Demand Forecasting"
@@ -587,7 +597,7 @@ def tab1_layout():
         [
             html.Div([store_dropdown("t1-store"), date_picker("t1-dates")], className="controls card"),
             html.Div(id="t1-kpis", className="kpi-row", style={"margin": "12px 0"}),
-            html.Div(dcc.Graph(id="t1-chart"), className="card"),
+            html.Div([dcc.Graph(id="t1-chart", config={"displayModeBar": False}), chart_hint()], className="card"),
             html.Div("One-step-ahead predictions: each day is predicted using the real sales of the days before it.", className="note"),
         ]
     )
@@ -605,7 +615,8 @@ def tab2_layout():
                         className="note",
                         style={"margin": "0 0 8px"},
                     ),
-                    dcc.Graph(id="t2-heatmap", style={"height": "640px"}),
+                    dcc.Graph(id="t2-heatmap", style={"height": "640px"}, config={"displayModeBar": False}),
+                    chart_hint(),
                 ],
                 className="card",
             ),
@@ -643,7 +654,11 @@ def tab3_layout():
             ),
             html.Div(id="t3-kpi", style={"fontSize": "18px", "margin": "16px 2px 12px", "fontWeight": "600"}),
             html.Div(id="t3-table"),
-            html.Div(dcc.Graph(id="t3-chart"), className="card", style={"marginTop": "12px"}),
+            html.Div(
+                [dcc.Graph(id="t3-chart", config={"displayModeBar": False}), chart_hint()],
+                className="card",
+                style={"marginTop": "12px"},
+            ),
             html.Div(
                 "What-if only: the promotion is forced on (or off) for every day in the range, and the model's promo-timing features are recomputed to match. "
                 "Sales-lag features keep their actual values, so this estimates the direct promo effect, not a full chain reaction.",
@@ -670,7 +685,11 @@ def tab4_layout():
                 ],
                 className="controls card",
             ),
-            html.Div(dcc.Graph(id="t4-chart"), className="card", style={"marginTop": "12px"}),
+            html.Div(
+                [dcc.Graph(id="t4-chart", config={"displayModeBar": False}), chart_hint()],
+                className="card",
+                style={"marginTop": "12px"},
+            ),
             html.Div(
                 f"Recursive forecast for {FUTURE_START:%b %d}–{FUTURE_END:%b %d, %Y} ({FUTURE_DAYS} days — the calendar in Kaggle's test.csv, which covers {len(FORWARD_STORE_IDS)} of {len(STORE_IDS)} stores). "
                 "Each day is predicted from the model's own earlier predictions; promotions and holidays come from the known calendar. "
