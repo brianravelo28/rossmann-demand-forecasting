@@ -22,7 +22,7 @@ _state = {"app": None, "error": None, "started": time.time(), "pid": None}
 _LOADING = (
     b"<!doctype html><meta charset=utf-8><meta http-equiv=refresh content=4>"
     b"<title>Loading</title><body style=\"font:16px system-ui;margin:15vh auto;max-width:28em;"
-    b"color:#333\"><h2>Rossmann-style demand forecasting</h2>"
+    b"color:#333\"><h2>Rossmann Demand Forecasting</h2>"
     b"<p>The dashboard is starting up - this page refreshes automatically.</p>"
 )
 

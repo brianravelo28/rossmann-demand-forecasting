@@ -6,6 +6,7 @@ Outputs:
 - models/lightgbm_model.pkl
 - data/test_predictions.csv
 - cv_results.csv
+- day2_metrics.json
 - arima_baseline.html
 
 NOTE: the saved model is trained on log1p(Sales) (standard for retail %-error

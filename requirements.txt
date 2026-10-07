@@ -4,6 +4,7 @@ lightgbm
 statsmodels
 pmdarima
 plotly
+pyarrow
 dash
 scikit-learn
 shap

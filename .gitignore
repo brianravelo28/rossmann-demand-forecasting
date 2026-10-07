@@ -1,5 +1,5 @@
-# Raw Kaggle data and large derived/generated data files (regenerate via day1_eda.py /
-# day2_model.py per README "How to Run" — not redistributed here)
+# Raw Kaggle CSVs and the large generated files stay out of git (regenerate via day1_eda.py /
+# day2_model.py per README "How to Run"); a compact derived copy ships in deploy_data/ instead
 data/*.csv
 
 # Trained model artifact (regenerate via day2_model.py)
