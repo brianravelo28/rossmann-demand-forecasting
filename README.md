@@ -1,5 +1,7 @@
 # Rossmann Demand Forecasting
 
+![Rossmann Demand Forecasting dashboard](docs/screenshot.png)
+
 **Live demo:** https://rossmann-demand-forecasting.onrender.com/ — hosted on Render's free tier, so if it has been idle the first load shows a "starting up" page for up to a minute.
 
 ## Problem Statement
