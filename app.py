@@ -454,7 +454,7 @@ def chart_hint(legend=True):
     text = CHART_HINT_ZOOM + (CHART_HINT_LEGEND if legend else "")
     return html.P(text, className="chart-hint")
 
-app = Dash(__name__)
+app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = "Rossmann Demand Forecasting"
 server = app.server  # WSGI entry point for gunicorn (Render)
 app.index_string = f"""<!DOCTYPE html>

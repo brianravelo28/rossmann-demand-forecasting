@@ -9,7 +9,7 @@ services:
     healthCheckPath: /healthz
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.9
+        value: 3.14.6
       - key: OMP_NUM_THREADS
         value: "1"
       - key: MALLOC_ARENA_MAX

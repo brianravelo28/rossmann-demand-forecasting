@@ -165,6 +165,7 @@ everything the dashboard needs — the full daily history, the Jan–Jul 2015 ho
 predictions and features, the Aug–Sep 2015 calendar, store attributes, and the trained model.
 
 ```bash
+# Python 3.14 (what the pinned versions in requirements-render.txt were tested on)
 pip install -r requirements-render.txt
 python app.py
 # Navigate to http://localhost:8050
@@ -258,9 +259,7 @@ idle, so the first request after a pause takes up to a minute; a paid instance r
     specifically, the model's rightmost leaf apparently encoded H1 2014's elevated sales level
     and misapplied it to Q3's seasonal dip. Removing the feature (see Feature Engineering above)
     fixed Fold 3 (16.36% → 8.88%, now the *best* fold) and every other fold too (CV mean 13.58% →
-    10.04%). Lesson: a feature ranking 3rd in SHAP importance was still net harmful — SHAP
-    magnitude says how much a feature moves predictions, not whether the move is correct, so it's
-    not a substitute for ablation when a specific fold or period looks anomalous.
+    10.04%).
 
 ## Files
 ```
@@ -276,7 +275,7 @@ Rossmann Project/
 ├── eda_summary.json, cv_results.csv, day2_metrics.json, shap_feature_importance.csv
 ├── store1_timeseries.html, store1_acf_pacf.html, arima_baseline.html   (EDA / ARIMA-baseline charts)
 ├── shap_feature_importance_bar.png, shap_summary_beeswarm.png
-├── README.md (this file)
+├── README.md (this file), LICENSE (MIT)
 └── requirements.txt          full (training) dependencies
 ```
 
@@ -310,19 +309,18 @@ Rossmann Project/
 - A targeted feature aimed at one weak fold (Fold 4) improved every fold, not just that one —
   holiday timing correlates across the calendar year, so the model generalized the signal rather
   than just memorizing Q4 2014's specific holidays.
-- SHAP explainability is useful for catching model behavior (e.g. DaysSinceStart extrapolation
-  risk) that raw accuracy metrics don't reveal — and for confirming a fix actually worked: after
-  the calendar-alignment fix, all four `Sales_lag_*` features moved into the top 8 SHAP features,
-  versus only two before. That said, SHAP rank and practical impact aren't the same thing:
-  `DaysToNextHoliday` ranked in the top 10 when it was added (11th in the final model) but was
-  decisive for Fold 4 specifically — don't use global SHAP rank alone to decide which features are worth keeping.
-- ...and the same lesson cuts the other way, more sharply: `DaysSinceStart` ranked *3rd* in SHAP
-  importance while being net harmful to accuracy on every single fold. High SHAP magnitude means
-  a feature strongly influences the prediction — it says nothing about whether that influence
-  points the right direction, especially for a feature (a linear trend counter) that's guaranteed
-  to be extrapolating on every fold by construction. When a specific fold looks anomalous, treat
-  that as a prompt to ablate the features most likely to behave differently in- vs. out-of-range,
-  not just to add more features aimed at the symptom.
+- SHAP importance measures how much a feature moves the prediction, not whether it moves it the right
+  way, so it is no substitute for ablation. `DaysSinceStart` ranked *3rd* yet was net harmful on every
+  fold (a linear trend counter is guaranteed to be extrapolating on every fold), while `DaysToNextHoliday`
+  ranked in the top 10 when added (11th in the final model) but was decisive for Fold 4. When a specific
+  fold looks anomalous, ablate the features most likely to behave differently in- vs. out-of-range
+  rather than adding more features aimed at the symptom. (SHAP did usefully confirm the calendar-lag
+  fix: all four `Sales_lag_*` features moved into the top 8, versus only two before.)
+
+## License
+The code is released under the [MIT License](LICENSE). The Rossmann data itself is not covered by it: it was
+provided by Dirk Rossmann GmbH through Kaggle and remains subject to the
+[competition rules](https://www.kaggle.com/c/rossmann-store-sales/rules).
 
 ## Author
 Brian | Data Scientist | October 2026
