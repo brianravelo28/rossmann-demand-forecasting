@@ -9,7 +9,8 @@ holidays, store type, and competition. Accurate forecasts reduce stockouts and e
 ## Solution Overview
 Time-series sales forecasting using LightGBM with walk-forward cross-validation.
 Built on 844,392 open-store-day records (Jan 2013–Jul 2015) from 1,115 stores: the final model trains
-on 2013–2014 (648,360 rows) and is scored on a Jan–Jul 2015 holdout it never saw (196,032 rows).
+on 2013–2014 (648,360 rows) and is scored on a Jan–Jul 2015 holdout it was never trained on (196,032 rows). I also looked at that holdout score
+while choosing features, so treat it as mildly optimistic; the 2014 walk-forward CV is the cleaner estimate.
 
 ## Why LightGBM, and how it compares to simple baselines
 I used one gradient-boosted model for all stores rather than a time-series model per store. Promotions, holidays,
@@ -104,7 +105,7 @@ How to read it:
 | 4 | 2013–Q3'14 | Q4 2014 | 11.09% | 1293.4 | 805.1 |
 | **Mean** | — | — | **10.04%** | **1056.9** | **683.0** |
 
-### Final Test Set (Jan–Jul 2015, unseen)
+### Holdout (Jan–Jul 2015, held out from training; also used to guide feature choices)
 - **MAPE**: 9.15%
 - **RMSE**: 912.5
 - **% predictions within ±25%**: 95.9%

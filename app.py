@@ -520,7 +520,7 @@ def header():
             ),
             html.Div(
                 [
-                    kpi("Holdout MAPE", _fmt_pct(m.get("final_mape")), "one-step-ahead, Jan–Jul 2015, never trained on"),
+                    kpi("Holdout MAPE", _fmt_pct(m.get("final_mape")), "one-step-ahead, Jan–Jul 2015, held out from training"),
                     kpi("Within ±25% of actual", _fmt_pct(m.get("within_25_pct")), "share of store-days"),
                     kpi("Walk-forward CV MAPE", _fmt_pct(m.get("cv_mean_mape")), "4 expanding folds, 2014"),
                     kpi("Simple lookup baseline", _fmt_pct((m.get("static_lookup") or {}).get("mape")), "store × weekday × promo average, no recent sales"),
@@ -534,7 +534,7 @@ def header():
                         [
                             html.Li("One LightGBM regressor for all stores, trained on log(1 + daily sales) so small and large stores count equally in percentage terms."),
                             html.Li("42 features: weekday/month, state & school holidays and days to/since the nearest holiday, promo status and days to/since the nearest promo, the recurring Promo2 program, calendar-aligned sales lags (1/7/14/28 days) and rolling means (7/30 days), store type, assortment and competition."),
-                            html.Li("Validated with 4 expanding-window folds across 2014, then a final holdout (Jan–Jul 2015) the model never saw."),
+                            html.Li("Validated with 4 expanding-window folds across 2014, then a final holdout (Jan–Jul 2015) the model was never trained on (it also guided feature choices, so it is mildly optimistic)."),
                             html.Li("Tabs 1–3 show one-step-ahead predictions: each day is predicted knowing the real sales of the days before it. Tab 4 has no real sales to lean on, so it forecasts recursively, feeding its own predictions forward — expect it to be less accurate than the headline numbers."),
                             html.Li("Sales are in euros. Closed days are excluded from accuracy metrics."),
                             html.Li("Built on the Kaggle Rossmann Store Sales data (Dirk Rossmann GmbH, 2015): daily sales for 1,115 German drugstores, Jan 2013 – Jul 2015."),
