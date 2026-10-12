@@ -81,7 +81,9 @@ def plot_store_timeseries(df, store_id=1, output_path="store1_timeseries.html"):
 
 def plot_acf_pacf(df, store_id=1, lags=40, output_path="store1_acf_pacf.html"):
     d = df[df["Store"] == store_id].sort_values("Date")
-    sales = d["Sales"].reset_index(drop=True)
+    # df has had closed days removed, so rows are not consecutive calendar days. Put the series back on a
+    # full daily calendar (closed days had zero sales) so that lag k means k days, and lag 7 means one week.
+    sales = d.set_index("Date")["Sales"].asfreq("D", fill_value=0).reset_index(drop=True)
 
     acf_vals = acf(sales, nlags=lags)
     pacf_vals = pacf(sales, nlags=lags)
@@ -90,7 +92,7 @@ def plot_acf_pacf(df, store_id=1, lags=40, output_path="store1_acf_pacf.html"):
     fig.add_trace(go.Bar(x=list(range(len(acf_vals))), y=acf_vals, name="ACF"), row=1, col=1)
     fig.add_trace(go.Bar(x=list(range(len(pacf_vals))), y=pacf_vals, name="PACF"), row=1, col=2)
     fig.update_layout(
-        title=f"Store {store_id} ACF / PACF (lags={lags})",
+        title=f"Store {store_id} ACF / PACF on the daily calendar, closed days = 0 (lags={lags})",
         template="plotly_white",
         showlegend=False,
     )
