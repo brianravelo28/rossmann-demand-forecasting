@@ -520,10 +520,10 @@ def header():
             ),
             html.Div(
                 [
-                    kpi("Holdout MAPE", _fmt_pct(m.get("final_mape")), "Jan–Jul 2015, never trained on"),
+                    kpi("Holdout MAPE", _fmt_pct(m.get("final_mape")), "one-step-ahead, Jan–Jul 2015, never trained on"),
                     kpi("Within ±25% of actual", _fmt_pct(m.get("within_25_pct")), "share of store-days"),
                     kpi("Walk-forward CV MAPE", _fmt_pct(m.get("cv_mean_mape")), "4 expanding folds, 2014"),
-                    kpi("ARIMA baseline, Store 1", _fmt_pct((m.get("arima") or {}).get("mape")), "per-store model, same holdout"),
+                    kpi("Simple lookup baseline", _fmt_pct((m.get("static_lookup") or {}).get("mape")), "store × weekday × promo average, no recent sales"),
                 ],
                 className="kpi-row",
             ),

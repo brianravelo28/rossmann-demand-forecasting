@@ -6,7 +6,7 @@ Outputs:
 - models/lightgbm_model.pkl
 - data/test_predictions.csv
 - cv_results.csv
-- day2_metrics.json
+- day2_metrics.json (includes the ARIMA and store x weekday x promo lookup baselines)
 - arima_baseline.html
 
 NOTE: the saved model is trained on log1p(Sales) (standard for retail %-error
@@ -209,6 +209,28 @@ def fit_arima_baseline(df, store_id=1, split_date="2015-01-01", output_path="ari
     return {"order": order, "mape": mape, "rmse": rmse}
 
 
+def static_lookup_baseline(df, split_date="2015-01-01", store_id=1):
+    """The bar the model should clear: predict each day as that store's average sales for the
+    same weekday and promo status, taken from the training period only. No recent sales, no
+    model. (The ARIMA baseline above is a weak reference: it goes flat after 5 days.)"""
+    split = pd.Timestamp(split_date)
+    d = df[df["Sales"] > 0].copy()
+    d["_dow"] = d["Date"].dt.dayofweek
+    means = (
+        d[d["Date"] < split]
+        .groupby(["Store", "_dow", "Promo_active"])["Sales"].mean()
+        .rename("_pred").reset_index()
+    )
+    test = d[d["Date"] >= split].merge(means, on=["Store", "_dow", "Promo_active"], how="left")
+    test = test.dropna(subset=["_pred"])  # store/weekday/promo combos never seen in training
+    one = test[test["Store"] == store_id]
+    return {
+        "mape": _mape(test["Sales"].values, test["_pred"].values),
+        "mape_store1": _mape(one["Sales"].values, one["_pred"].values),
+        "rows": int(len(test)),
+    }
+
+
 FOLDS = [
     ("2013-01-01", "2013-12-31", "2014-01-01", "2014-03-31"),
     ("2013-01-01", "2014-03-31", "2014-04-01", "2014-06-30"),
@@ -279,6 +301,9 @@ if __name__ == "__main__":
     arima_results = fit_arima_baseline(df_feat, store_id=1, split_date="2015-01-01")
     print(f"ARIMA order={arima_results['order']} MAPE={arima_results['mape']:.2f}% RMSE={arima_results['rmse']:.1f}")
 
+    lookup_results = static_lookup_baseline(df_feat, split_date="2015-01-01", store_id=1)
+    print(f"Static lookup baseline MAPE={lookup_results['mape']:.2f}% (Store 1: {lookup_results['mape_store1']:.2f}%)")
+
     print("Running walk-forward CV + final LightGBM fit...")
     cv_results_df, final_model, test_with_predictions = walk_forward_cv(df_feat, FEATURE_COLS)
     cv_results_df.to_csv("cv_results.csv", index=False)
@@ -306,6 +331,7 @@ if __name__ == "__main__":
     import json
     final_metrics = {
         "arima": arima_results,
+        "static_lookup": lookup_results,
         "cv_mean_mape": float(cv_results_df["MAPE"].mean()),
         "cv_mean_rmse": float(cv_results_df["RMSE"].mean()),
         "cv_mean_mae": float(cv_results_df["MAE"].mean()),

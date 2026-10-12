@@ -13,21 +13,28 @@ Time-series sales forecasting using LightGBM with walk-forward cross-validation.
 Built on 844,392 open-store-day records (Jan 2013–Jul 2015) from 1,115 stores: the final model trains
 on 2013–2014 (648,360 rows) and is scored on a Jan–Jul 2015 holdout it never saw (196,032 rows).
 
-## Why LightGBM Over ARIMA
-ARIMA assumes stationarity and linear dependencies but fails on retail data:
-- **Promotions**: non-linear sales spikes (measured promo lift here: **+38.8%**)
-- **Store heterogeneity**: StoreType b stores average ~48% higher sales than other types
-- **Holidays**: discrete demand shifts violating differencing assumptions
-- **Scale**: a single LightGBM model serves all 1,115 stores; ARIMA needs a separate fit per store
+## Why LightGBM, and how it compares to simple baselines
+I used one gradient-boosted model for all stores rather than a time-series model per store. Promotions, holidays,
+store type and competition are inputs it needs to use, the stores share structure (a per-store model would have only
+~760 training days each), and one model is one thing to deploy. The question that matters is whether that is better
+than something simple. MAPE on the Jan–Jul 2015 holdout (lower is better):
 
-**ARIMA baseline (Store #1 only)**: 17.2% MAPE
-**LightGBM (CV mean, all stores)**: 10.0% MAPE
-**LightGBM (final holdout, all stores)**: 9.2% MAPE
-**LightGBM (Store #1 only, same period as ARIMA)**: 9.0% MAPE
+| Predictor | All stores | Store #1 |
+|---|---|---|
+| Store × weekday × promo average from 2013–14 (no recent sales, no model) | 11.3% | 12.5% |
+| **LightGBM, one-step-ahead** (real sales of the previous days are known) | **9.15%** | **9.0%** |
+| ARIMA(0,0,5), one store only (classical reference) | — | 17.2% |
 
-On Store #1 specifically, LightGBM (9.0% MAPE) clearly beats ARIMA (17.2%) — nearly halving its
-error — and it does so while simultaneously serving all 1,115 stores' non-linear
-promotion/holiday effects from a **single model** instead of 1,115 separate per-store fits.
+How to read it:
+- **The lookup is the bar to clear.** LightGBM beats it by about 2 points one-step-ahead (a 19% cut in error).
+  Promo status, weekday and store level explain most of the variation; the model's added value is adapting to
+  recent sales and promo timing.
+- **Multi-week forecasting is the harder case** (Rossmann's managers plan up to six weeks ahead). The recursive
+  forecast, which never sees real sales after the cutoff, scores **10.4% vs 11.4% for the lookup** on a July 2015
+  sample of 150 stores: about 1 point (a 9% cut). Reproduce with `analysis/backtest_recursive.py`.
+- **The ARIMA row is a weak reference, not a fair head-to-head.** It is non-seasonal and a moving-average(5), so its
+  forecast is a constant after five days; it is fit on a single store and forecasts all ~175 open days of 2015
+  without any new information, while LightGBM is given the real previous days' sales. Beating it says little.
 
 ## Data
 - **Source**: Kaggle Rossmann Store Sales
@@ -186,6 +193,7 @@ python day2_model.py  # -> models/lightgbm_model.pkl, data/test_predictions.csv,
                       #    day2_metrics.json, arima_baseline.html
 python day3_shap.py   # -> shap_feature_importance.csv, shap_*.png
 python build_deploy_data.py   # -> deploy_data/ (optional; refreshes the compact bundle)
+python analysis/backtest_recursive.py   # optional; multi-week backtest + baseline comparison (needs only deploy_data/)
 
 # 3. Launch the dashboard (uses deploy_data/ if present; set ROSSMANN_USE_LOCAL_DATA=1
 #    to force the full data/ + models/ files instead)
@@ -272,6 +280,7 @@ Rossmann Project/
 ├── features.py               shared feature definitions + event-distance helpers
 ├── day1_eda.py, day2_model.py, day3_shap.py
 ├── build_deploy_data.py      builds deploy_data/ from the pipeline outputs
+├── analysis/backtest_recursive.py   multi-week backtest vs the lookup baseline (numbers quoted above)
 ├── app.py                    Dash dashboard
 ├── wsgi.py, render.yaml, requirements-render.txt   Render deployment (entry point, blueprint, runtime deps)
 ├── eda_summary.json, cv_results.csv, day2_metrics.json, shap_feature_importance.csv
@@ -286,8 +295,8 @@ Rossmann Project/
   different sales scale — L2 loss on raw sales effectively ignores small stores' % error.
 - Lag/rolling features computed on a row-filtered (Open=1) series don't correspond to true
   calendar-day lags — this was the biggest single lever early on. Fixing it (calendar-day-offset
-  merges instead of `groupby().shift()`) took final-test MAPE from 18.0% to 13.5% and made
-  LightGBM's win over ARIMA unambiguous on a like-for-like store comparison. The bug wasn't
+  merges instead of `groupby().shift()`) took final-test MAPE from 18.0% to 13.5%; before it, LightGBM was
+  no better than the ARIMA reference on Store 1 (18.7% vs 17.2%). The bug wasn't
   obvious from the code alone — it only showed up by checking whether every store had a complete
   calendar-day history, which 181 of 1,115 didn't.
 - Once the lag/rolling machinery was calendar-correct and generalized (one
