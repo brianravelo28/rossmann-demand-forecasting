@@ -130,11 +130,11 @@ def engineer_features(df, date_col="Date", store_col="Store", sales_col="Sales")
 
     dow = pd.get_dummies(df["DayOfWeek"], prefix="DoW")
     for i in range(1, 7):
-        df[f"DoW_{i}"] = dow.get(f"DoW_{i}", 0).astype(int)
+        df[f"DoW_{i}"] = dow.get(f"DoW_{i}", pd.Series(0, index=df.index)).astype(int)
 
     month = pd.get_dummies(df[date_col].dt.month, prefix="Month")
     for i in range(1, 12):
-        df[f"Month_{i}"] = month.get(f"Month_{i}", 0).astype(int)
+        df[f"Month_{i}"] = month.get(f"Month_{i}", pd.Series(0, index=df.index)).astype(int)
 
     # Computed but deliberately NOT in FEATURE_COLS: every val/test fold is beyond the
     # training date range by construction, so a tree model can only extrapolate this

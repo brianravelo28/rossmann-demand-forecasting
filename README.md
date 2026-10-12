@@ -195,6 +195,7 @@ python day2_model.py  # -> models/lightgbm_model.pkl, data/test_predictions.csv,
 python day3_shap.py   # -> shap_feature_importance.csv, shap_*.png
 python build_deploy_data.py   # -> deploy_data/ (optional; refreshes the compact bundle)
 python analysis/backtest_recursive.py   # optional; multi-week backtest + baseline comparison (needs only deploy_data/)
+python -m pytest                        # optional; feature-engineering and model-parity tests (needs pytest; no Kaggle data)
 
 # 3. Launch the dashboard (uses deploy_data/ if present; set ROSSMANN_USE_LOCAL_DATA=1
 #    to force the full data/ + models/ files instead)
@@ -282,6 +283,7 @@ Rossmann Project/
 ├── day1_eda.py, day2_model.py, day3_shap.py
 ├── build_deploy_data.py      builds deploy_data/ from the pipeline outputs
 ├── analysis/backtest_recursive.py   multi-week backtest vs the lookup baseline (numbers quoted above)
+├── tests/                    pytest: calendar-day lags, no future leakage, event features, booster parity
 ├── app.py                    Dash dashboard
 ├── wsgi.py, render.yaml, requirements-render.txt   Render deployment (entry point, blueprint, runtime deps)
 ├── eda_summary.json, cv_results.csv, day2_metrics.json, shap_feature_importance.csv
