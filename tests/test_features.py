@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from day2_model import engineer_features
+from train_model import engineer_features
 from features import FEATURE_COLS, add_promo2_active_feature, add_promo_distance_features, extract_promo_calendar
 
 SALES_FEATURES = ["Sales_lag_1", "Sales_lag_7", "Sales_lag_14", "Sales_lag_28", "Sales_rolling_7d", "Sales_rolling_30d"]

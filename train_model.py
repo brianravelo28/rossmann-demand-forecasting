@@ -1,12 +1,12 @@
 """
-Day 2: Feature engineering, ARIMA baseline, and LightGBM walk-forward CV
+Feature engineering, ARIMA baseline, and LightGBM walk-forward CV
 for Rossmann demand forecasting.
 
 Outputs:
 - models/lightgbm_model.pkl
 - data/test_predictions.csv
 - cv_results.csv
-- day2_metrics.json (includes the ARIMA and store x weekday x promo lookup baselines)
+- metrics.json (includes the ARIMA and store x weekday x promo lookup baselines)
 - arima_baseline.html
 
 NOTE: the saved model is trained on log1p(Sales) (standard for retail %-error
@@ -20,7 +20,6 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from lightgbm import LGBMRegressor
-from pmdarima import auto_arima
 
 LGBM_PARAMS = dict(
     num_leaves=31,
@@ -36,7 +35,7 @@ LGBM_PARAMS = dict(
     random_state=42,
 )
 
-from features import (  # noqa: F401  (re-exported for callers of day2_model)
+from features import (  # noqa: F401  (re-exported for callers of train_model)
     STORE_TYPES,
     ASSORTMENTS,
     HOLIDAY_MAX_DAYS,
@@ -100,7 +99,7 @@ def engineer_features(df, date_col="Date", store_col="Store", sales_col="Sales")
     """`df` must be the FULL per-store history (Open=0 rows included) — see
     load_raw_merged(). Lag/rolling/promo-lag features are computed on true
     calendar-day offsets, then the result is filtered to Open==1 rows only,
-    matching the original Day-1 "rows: Open=1 only" modeling contract."""
+    matching the modeling contract of Open==1 rows only."""
     df = df.copy()
     df[date_col] = pd.to_datetime(df[date_col])
     df = df.sort_values([store_col, date_col]).reset_index(drop=True)
@@ -178,6 +177,8 @@ def _mae(actual, pred):
 
 
 def fit_arima_baseline(df, store_id=1, split_date="2015-01-01", output_path="arima_baseline.html"):
+    from pmdarima import auto_arima  # imported here so the feature code and tests don't need the ARIMA stack
+
     d = df[df["Store"] == store_id].sort_values("Date")
     split = pd.Timestamp(split_date)
     train = d[d["Date"] < split]
@@ -340,7 +341,7 @@ if __name__ == "__main__":
         "within_25_pct": within_25,
         "feature_cols": FEATURE_COLS,
     }
-    with open("day2_metrics.json", "w") as f:
+    with open("metrics.json", "w") as f:
         json.dump(final_metrics, f, indent=2, default=str)
 
-    print("Day 2 complete.")
+    print("Training complete.")

@@ -37,8 +37,9 @@ def test_booster_reproduces_saved_predictions(booster, sample):
     np.testing.assert_allclose(pred, sample["Predicted"].to_numpy(), rtol=1e-6)
 
 
-@pytest.mark.skipif(not PICKLE.exists(), reason="models/lightgbm_model.pkl is gitignored; run day2_model.py")
+@pytest.mark.skipif(not PICKLE.exists(), reason="models/lightgbm_model.pkl is gitignored; run train_model.py")
 def test_booster_matches_the_pickled_model(booster, sample):
+    pytest.importorskip("sklearn", reason="unpickling the LGBMRegressor needs scikit-learn")
     with open(PICKLE, "rb") as f:
         model = pickle.load(f)
     np.testing.assert_allclose(

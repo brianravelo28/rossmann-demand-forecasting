@@ -1,5 +1,5 @@
 """
-Day 1: Data loading, merging, and exploratory analysis for Rossmann demand forecasting.
+Data loading, merging, and exploratory analysis for Rossmann demand forecasting.
 
 Outputs:
 - data/train_processed.csv
@@ -131,4 +131,4 @@ if __name__ == "__main__":
     print("Plotting store 1 ACF/PACF...")
     plot_acf_pacf(df_train_clean, store_id=1, lags=40, output_path="store1_acf_pacf.html")
 
-    print("Day 1 complete.")
+    print("EDA complete.")

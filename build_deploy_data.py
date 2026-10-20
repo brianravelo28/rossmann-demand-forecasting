@@ -2,7 +2,7 @@
 Build the slim deploy_data/ bundle that the hosted dashboard loads (app.py uses it
 automatically when present; otherwise it reads the full data/ + models/ outputs).
 
-Run after day1_eda.py / day2_model.py:   python build_deploy_data.py
+Run after eda.py / train_model.py:   python build_deploy_data.py
 
 Contents (columns trimmed and downcast; parquet + snappy):
   predictions.parquet  Jan-Jul 2015 holdout: actual, predicted, and the model's features
@@ -10,7 +10,7 @@ Contents (columns trimmed and downcast; parquet + snappy):
   test.parquet         the Aug-Sep 2015 calendar (known promos / holidays / open days)
   store.parquet        store attributes
   model.txt            LightGBM booster (text format; predicts log1p(Sales))
-  day2_metrics.json    headline metrics shown in the dashboard header
+  metrics.json    headline metrics shown in the dashboard header
 """
 import json
 import pickle
@@ -89,7 +89,7 @@ def main():
     test.drop(columns=["Id"]).to_parquet(OUT / "test.parquet", compression="snappy", index=False)
     pd.read_csv(BASE / "data/store.csv").to_parquet(OUT / "store.parquet", compression="snappy", index=False)
 
-    shutil.copy(BASE / "day2_metrics.json", OUT / "day2_metrics.json")
+    shutil.copy(BASE / "metrics.json", OUT / "metrics.json")
 
     total = 0.0
     for f in sorted(OUT.iterdir()):

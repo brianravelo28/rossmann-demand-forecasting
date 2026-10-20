@@ -1,5 +1,5 @@
 """
-Day 3: SHAP explainability for the LightGBM Rossmann model.
+SHAP explainability for the LightGBM Rossmann model.
 
 Outputs:
 - shap_feature_importance.csv
@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import shap
 
-from day2_model import FEATURE_COLS
+from train_model import FEATURE_COLS
 
 
 def compute_shap_importance(model, X_test, feature_names):
@@ -74,4 +74,4 @@ if __name__ == "__main__":
 
     print(result["importance_df"].head(10))
     print(f"Saved: {result['saved_files']} and shap_feature_importance.csv")
-    print("Day 3 complete.")
+    print("SHAP analysis complete.")

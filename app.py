@@ -90,7 +90,7 @@ if DEPLOYED:
     store_meta = pd.read_parquet(DEPLOY_DIR / "store.parquet")
     test_future = pd.read_parquet(DEPLOY_DIR / "test.parquet")
     _raw = pd.read_parquet(DEPLOY_DIR / "history.parquet", filters=[("Date", ">=", HISTORY_START)])
-    METRICS_PATH = DEPLOY_DIR / "day2_metrics.json"
+    METRICS_PATH = DEPLOY_DIR / "metrics.json"
 else:
     with open(BASE_DIR / "models/lightgbm_model.pkl", "rb") as f:
         _model = pickle.load(f)
@@ -117,7 +117,7 @@ else:
     )
     _raw["Date"] = pd.to_datetime(_raw["Date"])
     _raw = _raw[_raw["Date"] >= HISTORY_START]
-    METRICS_PATH = BASE_DIR / "day2_metrics.json"
+    METRICS_PATH = BASE_DIR / "metrics.json"
 
 
 def predict_sales(X):

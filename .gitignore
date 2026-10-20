@@ -1,8 +1,8 @@
-# Raw Kaggle CSVs and the large generated files stay out of git (regenerate via day1_eda.py /
-# day2_model.py per README "How to Run"); a compact derived copy ships in deploy_data/ instead
+# Raw Kaggle CSVs and the large generated files stay out of git (regenerate via eda.py /
+# train_model.py per README "How to Run"); a compact derived copy ships in deploy_data/ instead
 data/*.csv
 
-# Trained model artifact (regenerate via day2_model.py)
+# Trained model artifact (regenerate via train_model.py)
 models/*.pkl
 
 # Python

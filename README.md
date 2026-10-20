@@ -142,7 +142,7 @@ predictive accuracy, which is a useful reminder that SHAP importance measures ho
 above and Limitations below.
 
 ## Dashboard
-Interactive Plotly Dash app. A header shows the headline metrics (read from `day2_metrics.json`) and
+Interactive Plotly Dash app. A header shows the headline metrics (read from `metrics.json`) and
 an "About this model" note, followed by 4 tabs:
 
 1. **Forecast vs Actual**: One-step-ahead predictions per store on the Jan–Jul 2015 holdout, with
@@ -189,10 +189,10 @@ pip install -r requirements.txt
 # 1. Download the Kaggle "Rossmann Store Sales" competition data (train.csv, test.csv,
 #    store.csv) and place the three files in data/
 # 2. Run the pipeline in order:
-python day1_eda.py    # -> eda_summary.json, store1_*.html (+ data/train_processed.csv, a cleaned copy no later step reads)
-python day2_model.py  # -> models/lightgbm_model.pkl, data/test_predictions.csv, cv_results.csv,
-                      #    day2_metrics.json, arima_baseline.html
-python day3_shap.py   # -> shap_feature_importance.csv, shap_*.png
+python eda.py    # -> eda_summary.json, store1_*.html (+ data/train_processed.csv, a cleaned copy no later step reads)
+python train_model.py  # -> models/lightgbm_model.pkl, data/test_predictions.csv, cv_results.csv,
+                      #    metrics.json, arima_baseline.html
+python shap_analysis.py   # -> shap_feature_importance.csv, shap_*.png
 python build_deploy_data.py   # -> deploy_data/ (optional; refreshes the compact bundle)
 python analysis/backtest_recursive.py   # optional; multi-week backtest + baseline comparison (needs only deploy_data/)
 python -m pytest                        # optional; feature-engineering and model-parity tests (needs pytest; no Kaggle data)
@@ -280,13 +280,13 @@ Rossmann Project/
 ├── models/                   (lightgbm_model.pkl; not tracked)
 ├── deploy_data/              compact bundle the dashboard loads (parquet + model.txt)
 ├── features.py               shared feature definitions + event-distance helpers
-├── day1_eda.py, day2_model.py, day3_shap.py
+├── eda.py, train_model.py, shap_analysis.py
 ├── build_deploy_data.py      builds deploy_data/ from the pipeline outputs
 ├── analysis/backtest_recursive.py   multi-week backtest vs the lookup baseline (numbers quoted above)
 ├── tests/                    pytest: calendar-day lags, no future leakage, event features, booster parity
 ├── app.py                    Dash dashboard
 ├── wsgi.py, render.yaml, requirements-render.txt   Render deployment (entry point, blueprint, runtime deps)
-├── eda_summary.json, cv_results.csv, day2_metrics.json, shap_feature_importance.csv
+├── eda_summary.json, cv_results.csv, metrics.json, shap_feature_importance.csv
 ├── store1_timeseries.html, store1_acf_pacf.html, arima_baseline.html   (EDA / ARIMA-baseline charts)
 ├── shap_feature_importance_bar.png, shap_summary_beeswarm.png
 ├── README.md (this file), LICENSE (MIT)
