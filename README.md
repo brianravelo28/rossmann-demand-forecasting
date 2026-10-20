@@ -4,337 +4,104 @@
 
 ![Rossmann Demand Forecasting dashboard](docs/screenshot.png)
 
-## Problem Statement
-Rossmann operates 1,115 stores across multiple regions with demand driven by promotions,
-holidays, store type, and competition. Accurate forecasts reduce stockouts and excess inventory.
+One LightGBM model that forecasts daily sales for all 1,115 Rossmann drugstores, built on the public Kaggle
+*Rossmann Store Sales* data (Jan 2013–Jul 2015), with an interactive dashboard. It is written for hiring managers and
+technical readers who want to see how the forecasts were built and how far they can be trusted. With it you can compare
+predictions with actual sales for any store, see where the model is weakest, test a "what if this store ran a
+promotion?" scenario, and view a 48-day forecast.
 
-## Solution Overview
-Time-series sales forecasting using LightGBM with walk-forward cross-validation.
-Built on 844,392 open-store-day records (Jan 2013–Jul 2015) from 1,115 stores: the final model trains
-on 2013–2014 (648,360 rows) and is scored on a Jan–Jul 2015 holdout it was never trained on (196,032 rows). I also looked at that holdout score
-while choosing features, so treat it as mildly optimistic; the 2014 walk-forward CV is the cleaner estimate.
+Rossmann's store managers plan staffing and stock up to six weeks ahead. Accurate forecasts reduce stockouts and excess
+inventory. Sales depend on promotions, holidays, store type, competition and how the store has been selling lately.
 
-## Why LightGBM, and how it compares to simple baselines
-I used one gradient-boosted model for all stores rather than a time-series model per store. Promotions, holidays,
-store type and competition are inputs it needs to use, the stores share structure (a per-store model would have only
-~760 training days each), and one model is one thing to deploy. The question that matters is whether that is better
-than something simple. MAPE on the Jan–Jul 2015 holdout (lower is better):
+## Results
 
-| Predictor | All stores | Store #1 |
+MAPE (mean absolute percentage error: the typical forecast is this far, in percent, from actual sales; lower is better)
+on January–July 2015, data the model was not trained on:
+
+| Predictor | One day ahead, all stores | A month ahead, 150-store July sample |
 |---|---|---|
-| Store × weekday × promo average from 2013–14 (no recent sales, no model) | 11.3% | 12.5% |
-| **LightGBM, one-step-ahead** (real sales of the previous days are known) | **9.15%** | **9.0%** |
-| ARIMA(0,0,5), one store only (classical reference) | — | 17.2% |
+| Average sales for the same store, weekday and promo status in 2013–14 (no model) | 11.3% | 11.4% |
+| **LightGBM** | **9.15%** | **10.4%** |
 
-How to read it:
-- **The lookup is the bar to clear.** LightGBM beats it by about 2 points one-step-ahead (a 19% cut in error).
-  Promo status, weekday and store level explain most of the variation; the model's added value is adapting to
-  recent sales and promo timing.
-- **Multi-week forecasting is the harder case** (Rossmann's managers plan up to six weeks ahead). The recursive
-  forecast, which never sees real sales after the cutoff, scores **10.4% vs 11.4% for the lookup** on a July 2015
-  sample of 150 stores: about 1 point (a 9% cut). Reproduce with `analysis/backtest_recursive.py`.
-- **The ARIMA row is a weak reference, not a fair head-to-head.** It is non-seasonal and a moving-average(5), so its
-  forecast is a constant after five days; it is fit on a single store and forecasts all ~175 open days of 2015
-  without any new information, while LightGBM is given the real previous days' sales. Beating it says little.
-
-## Data
-- **Source**: Kaggle Rossmann Store Sales
-- **Size**: 844,392 open-store-days after cleaning (1,115 stores, Jan 1, 2013–Jul 31, 2015) —
-  648,360 for training (2013–2014) and 196,032 held out (Jan–Jul 2015)
-- **Target**: Daily sales turnover (€)
-- **Features**: 42 engineered (temporal, lag, rolling, promotion, holiday, competition, store format)
-
-## Feature Engineering
-- **Temporal**: Day of week (6 dummies), month (11 dummies). `DaysSinceStart` (linear days-since-
-  series-start) is computed but deliberately excluded from the model — see the note below.
-- **Holiday**: State holiday, school holiday flags
-- **Lag sales**: T-1, T-7, T-14, T-28, computed as true **calendar-day** offsets (via a
-  date-shifted merge on `(Store, Date - N days)`), not a row-position shift. This matters: 181 of
-  1,115 stores have interior gaps in their recorded history (missing days, not just weekly
-  closures), so a plain `groupby('Store').shift(N)` silently drifts off the true N-days-ago value
-  for those stores. The calendar-day version also correctly returns `Sales_lag_1 = 0` for a
-  Monday whose Sunday was a closure, rather than borrowing Saturday's value as a proxy.
-- **Rolling**: 7-day, 30-day rolling means, computed on a per-store calendar-complete
-  reindexed series (so the window spans true calendar days even across gaps), then shifted by 1
-  to avoid leakage.
-- **Promotion**: Current, T-1 (also calendar-day-aligned, same fix as above)
-- **Holiday distance**: `DaysToNextHoliday`, `DaysSinceLastHoliday` — per-store calendar-day
-  distance to the nearest state holiday (clipped to 30 days), computed via `np.searchsorted`
-  against each store's sorted holiday-date list. Both are 0 on the holiday date itself. State
-  holidays in this dataset are regional (not every store observes every date), so this is
-  computed per store rather than off one shared national calendar.
-- **Promo distance**: `DaysToNextPromo`, `DaysSinceLastPromo` — same calendar-day-distance
-  machinery as the holiday features (generalized into one shared `add_event_distance_features()`
-  helper), applied to the primary `Promo` flag instead of `StateHoliday`. This turned out to be
-  the biggest single feature addition after the lag fix: `DaysToNextPromo` ranks 2nd in SHAP importance,
-  ahead of the plain `Promo_active` flag it complements — a continuous "how close is the next
-  promo" signal captures campaign timing patterns that a same-day binary flag can't.
-- **Promo2 interval**: `IsPromo2Active` — whether the *recurring* Promo2 program (distinct from
-  the day-to-day `Promo` flag) is running this calendar month for this store. Promo2 renews every
-  few months per `PromoInterval` (e.g. `"Jan,Apr,Jul,Oct"`) starting from the ISO week/year in
-  `Promo2SinceWeek`/`Promo2SinceYear` — the static `Promo2` column only says whether a store
-  *participates* in the program at all, not whether it's active on a given date, so this is a
-  materially different signal from just passing `Promo2` through.
-- **Competition**: Distance, years active
-- **Store format**: StoreType (a/b/c/d), Assortment (a/b/c) — one-hot. Not in the original
-  spec but added after diagnosing the initial model: these two columns show a ~48% mean-sales
-  gap by StoreType and are known strong predictors for this dataset, so leaving them out was
-  clearly leaving signal on the table.
-- **Target transform**: trained on `log1p(Sales)`, inverted with `expm1` at prediction time.
-  Without this, a store's L2 loss contribution scales with its absolute sales level, so the
-  model effectively ignores percentage error on smaller stores. This is standard practice for
-  this competition and measurably improved CV mean MAPE (21.9% → 18.4% at that stage of development).
-- **`DaysSinceStart` excluded from the model**: this linear "days since the training series
-  started" counter was in the original feature list, but every walk-forward validation fold (and
-  the final test period) is, by construction, entirely *beyond* the date range the model trained
-  on. A tree model can't extrapolate a linear trend past its training range — it just reuses
-  whatever leaf value corresponds to the rightmost dates it saw. For Fold 3 (train through Jun
-  2014, validate Jul–Sep 2014) that leaf happened to encode H1 2014's relatively elevated sales
-  level, so the model systematically over-predicted the Q3 seasonal dip by +14.8% on average.
-  Dropping the feature fixed Fold 3 specifically (16.4% → 8.9% MAPE) and, more importantly,
-  improved every other fold too (CV mean 13.6% → 10.0%) — it turned out to be net harmful
-  everywhere, not just somewhere this happened to be visible. It's still computed as a DataFrame
-  column (useful for EDA) but is not passed to the model.
-
-## Model Performance
-
-### Walk-Forward Cross-Validation (4 folds)
-| Fold | Train Period | Validation Period | MAPE | RMSE | MAE |
-|------|--------------|-------------------|------|------|-----|
-| 1 | 2013 | Q1 2014 | 10.67% | 1055.3 | 670.2 |
-| 2 | 2013–Q1'14 | Q2 2014 | 9.51% | 978.2 | 661.4 |
-| 3 | 2013–Q2'14 | Q3 2014 | 8.88% | 900.6 | 595.3 |
-| 4 | 2013–Q3'14 | Q4 2014 | 11.09% | 1293.4 | 805.1 |
-| **Mean** | — | — | **10.04%** | **1056.9** | **683.0** |
-
-### Holdout (Jan–Jul 2015, held out from training; also used to guide feature choices)
-- **MAPE**: 9.15%
-- **RMSE**: 912.5
-- **% predictions within ±25%**: 95.9%
-
-Interpretation: 96% of forecasts land within 25% of actual sales, and final-test MAPE is 9.2%.
-Fold 3 (Q3 2014) — previously the
-weakest fold at 16.36% MAPE — is now the *strongest* at 8.88%. Root cause: it had a systematic
-+14.8% over-prediction bias traced to `DaysSinceStart`, a linear trend feature the model couldn't
-extrapolate correctly past its training range (every fold's validation window is past that range,
-by construction). Removing it fixed Fold 3 and improved every other fold too — see the Feature
-Engineering note above. Fold 4 (holiday season) is now the weakest at 11.09%, but the spread across
-folds is narrow (8.9–11.1%) — nothing like the original Fold 4 (18.57%, before the holiday-distance
-features) or Fold 3 (16.36%, before `DaysSinceStart` was dropped).
-
-## Feature Importance (SHAP)
-Top 5 features by mean |SHAP value| (log-sales scale, since the model predicts log1p(Sales)):
-1. Sales_lag_14: 0.098
-2. DaysToNextPromo: 0.066
-3. Sales_rolling_7d: 0.062
-4. Sales_rolling_30d: 0.054
-5. Sales_lag_1: 0.048
-
-`DaysToNextPromo` still ranks 2nd, ahead of `Promo_active` — a continuous "how many days until
-the next promo" signal captures more of the promo effect than a same-day binary flag alone.
-`DaysSinceLastHoliday` (9th) and `DaysSinceLastPromo` (10th) both make the top 10.
-
-**Insight**: the calendar-aligned lag features (especially `Sales_lag_14` — two weeks ago, same
-weekday) and the promo-distance features dominate. Removing `DaysSinceStart` entirely turned out to
-be the right call — a feature ranking 3rd in SHAP importance was nonetheless net harmful to
-predictive accuracy, which is a useful reminder that SHAP importance measures how much a feature
-*moves* the prediction, not whether it moves it in the *right direction*. See Feature Engineering
-above and Limitations below.
+- **One day ahead** means the model sees the real sales of the previous days. It beats the simple average by about
+  2 points (a 19% cut in error).
+- **A month ahead** means the model forecasts from its own earlier predictions, which is the case managers plan with.
+  The advantage over the simple average shrinks to about 1 point (a 9% cut). This figure comes from one month and 150
+  stores (`analysis/backtest_recursive.py`), not the full period.
+- **Treat 9.15% as mildly optimistic.** The January–July 2015 data was never trained on, but its score was checked while
+  features were being chosen. The 2014 walk-forward cross-validation, with a mean MAPE of 10.0% (folds between 8.9%
+  and 11.1%), is the cleaner estimate. See [Methodology](docs/METHODOLOGY.md#2-validation-design).
+- A classical ARIMA model reaches 17.2% on Store 1, but it is a weak reference: it forecasts a constant after five days
+  and gets no new information, so beating it says little.
 
 ## Dashboard
-Interactive Plotly Dash app. A header shows the headline metrics (read from `metrics.json`) and
-an "About this model" note, followed by 4 tabs:
 
-1. **Forecast vs Actual**: One-step-ahead predictions per store on the Jan–Jul 2015 holdout, with
-   KPIs (MAPE, RMSE in €, % within ±25%).
-2. **Error Heatmap**: MAPE by store × ISO week. Stores are sorted by average error (worst on top) and
-   the color scale is capped at 40% so the typical range stays readable; hover gives exact values.
-3. **Promotion Simulator**: Force promotion on/off across a date range for a store; the promo-timing
-   features are recomputed to match, and the sales-lag features keep their actual values.
-4. **Forward Forecast (48 days)**: Recursive day-by-day forecast for Aug 1 – Sep 17, 2015 (the
-   calendar in Kaggle's `test.csv`, which covers 856 of the 1,115 stores). Pick up to 5 stores,
-   shown individually by default, or tick **Combined forecast?** for their summed total. CSV export.
+Charts zoom (drag to zoom, double-click to reset). Four tabs:
 
-**How the forward forecast works.** Each open day is predicted, and that prediction is written back
-into a per-date sales buffer so later days' `Sales_lag_*` / `Sales_rolling_*` features are computed
-exactly as in training (calendar-day offsets, closed days = 0) — but from the model's own earlier
-forecasts. Promotions and holidays come from the known `test.csv` calendar. *Backtest:* started on
-Jul 1 2015 for 150 random stores and scored against actuals, this recursive procedure gets **10.4%
-MAPE vs 8.9% one-step-ahead** on the same days — a real but modest cost, with no blow-up over the
-month (7-day buckets: 10.8 / 9.2 / 9.8 / 11.4%). Bands are ±1.96σ of log-error on the holdout (for
-the combined total, measured on the actual summed sales, so offsetting store errors are reflected);
-they don't widen with horizon, so treat them as a lower bound on the true uncertainty.
+1. **Forecast vs Actual:** one-day-ahead predictions per store, with MAPE, RMSE (root mean squared error, in euros) and
+   the share of forecasts within ±25%.
+2. **Error Heatmap:** MAPE by store and week, worst stores first.
+3. **Promotion Simulator:** force promotions on or off over a date range for one store and see the effect on forecast sales.
+4. **Forward Forecast (48 days):** a day-by-day forecast for 1 Aug–17 Sep 2015, for up to five stores, individually
+   or combined, with CSV export. Only the 856 stores in Kaggle's `test.csv` have a forward calendar.
 
-**Chart interactions.** The charts have no toolbar, so a one-line hint under each describes the
-controls: drag to zoom, double-click to reset the view, and (on charts with a legend) click a legend
-entry to hide that series or double-click it to isolate it.
+## Data and features
 
-## How to Run
-**Quickest (no Kaggle download):** the repo ships `deploy_data/`, a compact (~9.5 MB) copy of
-everything the dashboard needs — the full daily history, the Jan–Jul 2015 holdout with
-predictions and features, the Aug–Sep 2015 calendar, store attributes, and the trained model.
+- **Source:** Kaggle *Rossmann Store Sales*, provided by Dirk Rossmann GmbH
+  ([competition page](https://www.kaggle.com/c/rossmann-store-sales)). Real, anonymized sales; the target is daily
+  sales in euros.
+- **Size:** 844,392 open-store-days. The model trains on 2013–2014 (648,360 rows) and is scored on January–July 2015
+  (196,032 rows).
+- **Features (42):** calendar (weekday, month); holidays (flags and days to the next and since the last holiday);
+  promotions (flags, days to the next and since the last promotion, the recurring Promo2 programme); recent sales
+  (sales 1, 7, 14 and 28 calendar days earlier, 7- and 30-day rolling means); store type, assortment and competition.
+  The sales lags are exact calendar-day offsets, and no feature uses sales from the day being predicted or later.
+  Details and the feature-by-feature evidence are in the [Methodology](docs/METHODOLOGY.md).
+
+## How to run
+
+**Quickest (no Kaggle download):** the repo ships `deploy_data/`, a compact copy of everything the dashboard needs.
 
 ```bash
-# Python 3.14 (what the pinned versions in requirements-render.txt were tested on)
+# Python 3.14 (the version the pinned requirements were tested on)
 pip install -r requirements-render.txt
 python app.py
-# Navigate to http://localhost:8050
+# open http://localhost:8050
 ```
 
-**Full pipeline (regenerate everything from the raw Kaggle files):**
+**Full pipeline (from the raw Kaggle files):** put `train.csv`, `test.csv` and `store.csv` in `data/`, then:
 
 ```bash
 pip install -r requirements.txt
-
-# 1. Download the Kaggle "Rossmann Store Sales" competition data (train.csv, test.csv,
-#    store.csv) and place the three files in data/
-# 2. Run the pipeline in order:
-python eda.py    # -> eda_summary.json, store1_*.html (+ data/train_processed.csv, a cleaned copy no later step reads)
-python train_model.py  # -> models/lightgbm_model.pkl, data/test_predictions.csv, cv_results.csv,
-                      #    metrics.json, arima_baseline.html
-python shap_analysis.py   # -> shap_feature_importance.csv, shap_*.png
-python build_deploy_data.py   # -> deploy_data/ (optional; refreshes the compact bundle)
-python analysis/backtest_recursive.py   # optional; multi-week backtest + baseline comparison (needs only deploy_data/)
-python -m pytest                        # optional; feature-engineering and model-parity tests (needs pytest; no Kaggle data)
-
-# 3. Launch the dashboard (uses deploy_data/ if present; set ROSSMANN_USE_LOCAL_DATA=1
-#    to force the full data/ + models/ files instead)
-python app.py
+python eda.py                           # exploration summary and charts
+python train_model.py                   # features, baselines, cross-validation, final model -> models/, metrics.json
+python shap_analysis.py                 # feature importance
+python build_deploy_data.py             # optional: refresh deploy_data/
+python analysis/backtest_recursive.py   # optional: month-ahead backtest (needs only deploy_data/)
+python analysis/ablations.py            # optional: feature ablations, about 20 minutes
+python app.py                           # set ROSSMANN_USE_LOCAL_DATA=1 to use data/ and models/ instead of deploy_data/
 ```
 
-Data: *Rossmann Store Sales*, provided by Dirk Rossmann GmbH via Kaggle
-([competition page](https://www.kaggle.com/c/rossmann-store-sales)).
+**Tests:** `python -m pytest` (needs `pytest`; no Kaggle data) runs checks on small synthetic data that lags are exact
+calendar-day offsets, that no feature leaks sales from the day being predicted, that the promotion and holiday features
+behave as specified, and that the deployed model reproduces the saved predictions. They do not check dashboard layout
+or the live deployment.
 
-## Deployment (Render)
-`render.yaml` defines a free-tier web service that installs `requirements-render.txt` (runtime
-dependencies only — no training stack) and serves the app with gunicorn. In Render:
-**New + → Blueprint →** select this repository. The dashboard reads only `deploy_data/`, so the
-service needs no data download or training step.
+## Limitations
 
-`wsgi.py` is the entry point (`gunicorn wsgi:application`). The app loads its data at import, which
-takes ~25 s on Render's shared free-tier CPU, and Render fails a deploy that doesn't answer HTTP
-quickly — so the wrapper answers `/healthz` and a self-refreshing "starting up" page immediately and
-loads the dashboard on a background thread, started lazily on the first request inside the worker
-(starting it at import time deadlocked the forked gunicorn worker). `/debugz` reports whether the
-app has loaded, plus process memory.
+- **New stores** have no history, so the lag features fall back to zero.
+- **Forecast bands** are a constant-width interval from the 2015 errors; they do not widen with the forecast horizon.
+- **One holdout window** (seven months) that also guided feature choices; the month-ahead figure rests on one month.
+- **Missing history:** 180 stores have no rows from July to December 2014, and the model reads that gap as zero sales.
 
-Notes: the free tier has 512 MB of RAM (the app uses roughly 300 MB) and sleeps after ~15 minutes
-idle, so the first request after a pause takes up to a minute; a paid instance removes both limits.
-
-## Limitations & Future Work
-1. ~~Forward-forecast lags proxied with a constant~~ — **fixed**: Tab 4 now forecasts recursively
-   (see Dashboard). Remaining gap: forward bands don't widen with horizon, and only the 856 stores
-   in Kaggle's `test.csv` have a forward calendar.
-2. **New stores**: no historical data → lag features fall back to 0; a store-type aggregate would
-   be a better cold-start estimate.
-3. ~~Trend extrapolation: `DaysSinceStart` is a linear counter a tree model can't extrapolate past
-   its training range~~ — **fixed** (see item 10 below): removed from the model entirely rather
-   than replaced, since it turned out to be net harmful once actually measured.
-4. ~~Row-index vs. calendar-day lags~~ — **fixed**: `Sales_lag_*`/`Sales_rolling_*d`/`Promo_lag_1`
-   are now computed via calendar-day-offset merges (and a per-store calendar-complete reindex for
-   the rolling means) instead of a row-position `groupby().shift()`. This mattered more than the
-   weekly-closure case alone suggested: 181 of 1,115 stores have interior gaps in their recorded
-   history (missing days, not just Sundays), so the row-shift version was drifting off the true
-   N-days-ago value for ~16% of stores. Fixing it dropped final-test MAPE from 18.0% → **13.5%**
-   and pushed % within ±25% from 73% → **87%**.
-5. **Prediction intervals**: Tab 4's ±95% band uses ±1.96σ of the holdout log-error rather than a
-   proper quantile/conformal method, and is constant across the forecast horizon.
-6. ~~Feature scope: promo-interval / days-since/until-next-promo~~ — **fixed**: added
-   `IsPromo2Active` (recurring Promo2 program, derived from `Promo2SinceWeek/Year` +
-   `PromoInterval`) and `DaysToNextPromo`/`DaysSinceLastPromo` (calendar-day distance on the
-   primary `Promo` flag, via the same generalized `add_event_distance_features()` helper used for
-   holidays). This was the largest improvement since the calendar-lag fix: final-test
-   MAPE 12.8% → **10.3%**, CV mean 14.2% → **13.6%**, within ±25% 89% → **94.2%**.
-   `DaysToNextPromo` ranks 2nd in SHAP importance, ahead of `Promo_active` itself. One follow-on
-   fix this required: the Promotion Simulator (Tab 3) now recomputes `DaysToNextPromo`/
-   `DaysSinceLastPromo` for the counterfactual scenario too (previously only `Promo_active`/
-   `Promo_lag_1` were toggled) — without that, the simulator was feeding the model a
-   self-contradictory feature combination (promo toggled off, but the distance features still
-   said a promo was imminent), which measurably understated the simulated lift.
-7. **Ensemble**: combining LightGBM with a per-store seasonal model could further reduce error.
-8. ~~Holiday season (Fold 4) was the weakest fold~~ — **fixed**: added `DaysToNextHoliday` /
-   `DaysSinceLastHoliday` (per-store, calendar-day distance to the nearest state holiday, clipped
-   to 30 days, 0 on the holiday itself). Fold 4 MAPE dropped 18.57% → 13.29%, and CV mean dropped
-   17.11% → 14.15% — the improvement wasn't confined to Fold 4, since holiday timing correlates
-   across the year. `DaysToNextHoliday`/`DaysSinceLastHoliday` don't use `SchoolHoliday` — a
-   school-holiday-distance variant is a natural next feature to try if a future fold turns out to
-   be school-calendar-driven.
-9. **Promo2 vs. Promo**: `IsPromo2Active` is a coarse monthly on/off signal (Promo2 renews for
-   the whole month named in `PromoInterval`) — it doesn't capture exactly which day within that
-   month a Promo2 round started, unlike the day-level precision of `DaysToNextPromo` for the
-   primary `Promo` flag.
-10. ~~Fold 3 (Q3 2014) was the weakest fold~~ — **fixed, and the root cause had nothing to do with
-    Q3, summer, or school holidays (the obvious guesses)**: Fold 3 had a
-    systematic +14.8% over-prediction bias, traced (by an ablation, not a guess) to
-    `DaysSinceStart`. Every walk-forward fold's validation window sits entirely beyond its
-    training date range, so this linear trend feature was *always* extrapolating — for Fold 3
-    specifically, the model's rightmost leaf apparently encoded H1 2014's elevated sales level
-    and misapplied it to Q3's seasonal dip. Removing the feature (see Feature Engineering above)
-    fixed Fold 3 (16.36% → 8.88%, now the *best* fold) and every other fold too (CV mean 13.58% →
-    10.04%).
-
-## Files
-```
-Rossmann Project/
-├── data/                     (raw Kaggle CSVs + generated files; not tracked)
-├── models/                   (lightgbm_model.pkl; not tracked)
-├── deploy_data/              compact bundle the dashboard loads (parquet + model.txt)
-├── features.py               shared feature definitions + event-distance helpers
-├── eda.py, train_model.py, shap_analysis.py
-├── build_deploy_data.py      builds deploy_data/ from the pipeline outputs
-├── analysis/backtest_recursive.py   multi-week backtest vs the lookup baseline (numbers quoted above)
-├── tests/                    pytest: calendar-day lags, no future leakage, event features, booster parity
-├── app.py                    Dash dashboard
-├── wsgi.py, render.yaml, requirements-render.txt   Render deployment (entry point, blueprint, runtime deps)
-├── eda_summary.json, cv_results.csv, metrics.json, shap_feature_importance.csv
-├── store1_timeseries.html, store1_acf_pacf.html, arima_baseline.html   (EDA / ARIMA-baseline charts)
-├── shap_feature_importance_bar.png, shap_summary_beeswarm.png
-├── README.md (this file), LICENSE (MIT)
-└── requirements.txt          full (training) dependencies
-```
-
-## Learnings
-- Log-transforming the target matters a lot when training one model across stores of very
-  different sales scale — L2 loss on raw sales effectively ignores small stores' % error.
-- Lag/rolling features computed on a row-filtered (Open=1) series don't correspond to true
-  calendar-day lags — this was the biggest single lever early on. Fixing it (calendar-day-offset
-  merges instead of `groupby().shift()`) took final-test MAPE from 18.0% to 13.5%; before it, LightGBM was
-  no better than the ARIMA reference on Store 1 (18.7% vs 17.2%). The bug wasn't
-  obvious from the code alone — it only showed up by checking whether every store had a complete
-  calendar-day history, which 181 of 1,115 didn't.
-- Once the lag/rolling machinery was calendar-correct and generalized (one
-  `add_event_distance_features()` helper for "distance to nearest event"), extending it from
-  holidays to promos was cheap and paid off more than the holiday feature did on its own
-  (final-test MAPE 12.8% → 10.3% vs. 13.5% → 12.8% for holidays). A continuous "days until next
-  promo" signal captured more than the binary same-day `Promo_active` flag alone — worth
-  defaulting to distance features over binary flags for any recurring, schedulable event.
-- A new feature can silently break a downstream consumer that only partially mirrors the training
-  pipeline: adding `DaysToNextPromo` made the Promotion Simulator's counterfactual internally
-  inconsistent (toggled `Promo_active` off, but the distance features still described an
-  imminent promo) until it was updated to recompute those too. Worth an explicit check whenever a
-  new feature is added: everywhere a "what-if" scenario mutates one input feature, make sure every
-  other feature that's derived from the same underlying event gets mutated consistently.
-- Store-format features (StoreType, Assortment) that weren't in the original feature spec turned
-  out to carry real signal — worth checking "obvious" categorical columns before assuming an
-  engineered feature list is complete.
-- Walk-forward CV surfaces real weaknesses (Fold 4 / holiday season) that a single train/test
-  split would hide — and per-fold breakdown pointed straight at the fix (a holiday-distance
-  feature) rather than generic "tune the model more" advice.
-- A targeted feature aimed at one weak fold (Fold 4) improved every fold, not just that one —
-  holiday timing correlates across the calendar year, so the model generalized the signal rather
-  than just memorizing Q4 2014's specific holidays.
-- SHAP importance measures how much a feature moves the prediction, not whether it moves it the right
-  way, so it is no substitute for ablation. `DaysSinceStart` ranked *3rd* yet was net harmful on every
-  fold (a linear trend counter is guaranteed to be extrapolating on every fold), while `DaysToNextHoliday`
-  ranked in the top 10 when added (11th in the final model) but was decisive for Fold 4. When a specific
-  fold looks anomalous, ablate the features most likely to behave differently in- vs. out-of-range
-  rather than adding more features aimed at the symptom. (SHAP did usefully confirm the calendar-lag
-  fix: all four `Sales_lag_*` features moved into the top 8, versus only two before.)
+More in the [Methodology](docs/METHODOLOGY.md#9-limitations), including deployment details.
 
 ## License
-The code is released under the [MIT License](LICENSE). The Rossmann data itself is not covered by it: it was
-provided by Dirk Rossmann GmbH through Kaggle and remains subject to the
+
+The code is released under the [MIT License](LICENSE). The Rossmann data itself is not covered by it: it was provided by
+Dirk Rossmann GmbH through Kaggle and remains subject to the
 [competition rules](https://www.kaggle.com/c/rossmann-store-sales/rules).
 
 ## Author
-Brian | Data Scientist | October 2026
+
+Brian | Data Analyst
