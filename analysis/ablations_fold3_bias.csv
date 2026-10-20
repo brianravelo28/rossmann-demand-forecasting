@@ -1,0 +1,3 @@
+config,fold3_mape,fold3_mean_signed_pct_error
+final model,8.88,1.46
+with DaysSinceStart added,12.41,9.26

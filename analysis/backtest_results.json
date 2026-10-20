@@ -1,0 +1,17 @@
+{
+  "stores": 150,
+  "seed": 0,
+  "store_days_scored": 4066,
+  "window": "2015-07-01 to 2015-07-31",
+  "recursive_mape": 10.44,
+  "one_step_mape": 8.89,
+  "lookup_mape": 11.43,
+  "recursive_mape_by_7day_bucket": [
+    10.8,
+    9.2,
+    9.8,
+    11.4
+  ],
+  "recursive_bias_pct": 3.56,
+  "band_coverage_pct": 93.0
+}

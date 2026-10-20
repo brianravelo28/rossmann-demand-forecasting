@@ -1,0 +1,18 @@
+view,config,n_features,cv_mean_mape,fold1_mape,fold2_mape,fold3_mape,fold4_mape,holdout_mape
+ladder,"0 start: row-shift lags, raw target, with DaysSinceStart",31,23.68,21.94,21.32,28.02,23.45,16.83
+ladder,1 + log1p target,31,19.32,22.0,14.75,20.24,20.28,18.94
+ladder,"2 + store format (StoreType, Assortment)",38,18.27,21.76,13.42,18.35,19.54,17.92
+ladder,3 + calendar-day lags and rolling means,38,16.88,16.23,18.44,15.1,17.74,13.72
+ladder,4 + holiday distance,40,14.08,15.68,12.2,15.58,12.88,14.19
+ladder,5 + promo distance and IsPromo2Active,43,12.58,11.58,14.19,12.41,12.14,11.41
+ladder,6 - DaysSinceStart (final model),42,10.04,10.67,9.51,8.88,11.09,9.15
+leave_one_out,final model,42,10.04,10.67,9.51,8.88,11.09,9.15
+leave_one_out,without log1p target,42,10.54,11.3,10.21,9.12,11.55,9.39
+leave_one_out,without store format,35,10.18,10.72,9.98,8.93,11.09,9.21
+leave_one_out,row-shift lags instead of calendar-day,42,11.45,12.69,11.13,10.01,11.97,10.31
+leave_one_out,without holiday distance,40,10.96,12.13,10.86,8.97,11.89,9.55
+leave_one_out,without promo distance and IsPromo2Active,39,10.62,11.33,10.15,9.04,11.95,9.12
+leave_one_out,with DaysSinceStart added,43,12.58,11.58,14.19,12.41,12.14,11.41
+noise,"final model, random_state=7",42,9.98,10.59,9.41,8.87,11.05,9.17
+noise,"final model, random_state=123",42,10.14,10.84,9.77,8.92,11.05,9.17
+noise,"final model, columns in reverse order",42,10.07,10.64,9.62,8.91,11.13,9.18

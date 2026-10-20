@@ -9,8 +9,9 @@ Setup: 150 random stores (seed 0). Forecast Jul 1 - Jul 31 2015 starting from th
 Jun 30 2015, using the model trained on 2013-2014 only. Scored on open days with sales > 0.
 
 Needs only deploy_data/ (no Kaggle download):   python analysis/backtest_recursive.py
-Takes about a minute.
+Takes about a minute. Also writes analysis/backtest_results.json.
 """
+import json
 import sys
 from pathlib import Path
 
@@ -60,3 +61,21 @@ print(f"LightGBM, one-step (real recent sales each day):   MAPE {mape(one.Sales,
 print(f"Store x weekday x promo lookup (no recent sales):  MAPE {mape(look.Sales, look.lookup):.2f}%")
 print(f"Recursive bias (mean signed % error): {((rec.Forecast - rec.Sales) / rec.Sales).mean() * 100:+.2f}%")
 print(f"Share of actuals inside the +/-1.96 sigma band:    {inside.mean() * 100:.1f}%")
+
+rec["bucket"] = ((rec.Date - CUTOFF).dt.days // 7).clip(upper=3)
+weekly = rec.groupby("bucket").apply(lambda g: mape(g.Sales, g.Forecast), include_groups=False)
+print("Recursive MAPE by 7-day bucket:", " / ".join(f"{v:.1f}%" for v in weekly))
+
+results = {
+    "stores": N_STORES,
+    "seed": SEED,
+    "store_days_scored": int(len(rec)),
+    "window": "2015-07-01 to 2015-07-31",
+    "recursive_mape": round(mape(rec.Sales, rec.Forecast), 2),
+    "one_step_mape": round(mape(one.Sales, one.Predicted), 2),
+    "lookup_mape": round(mape(look.Sales, look.lookup), 2),
+    "recursive_mape_by_7day_bucket": [round(float(v), 1) for v in weekly],
+    "recursive_bias_pct": round(float(((rec.Forecast - rec.Sales) / rec.Sales).mean() * 100), 2),
+    "band_coverage_pct": round(float(inside.mean() * 100), 1),
+}
+(ROOT / "analysis" / "backtest_results.json").write_text(json.dumps(results, indent=2) + "\n")
