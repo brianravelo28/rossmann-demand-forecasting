@@ -2,8 +2,8 @@
 # pmdarima, shap, matplotlib or scikit-learn — the model ships as a LightGBM text file).
 # Latest releases as of Oct 2026, tested together on Python 3.14.6.
 pandas==3.0.6
-numpy==2.5.3
-pyarrow==25.0.1
+numpy==2.5.4
+pyarrow==26.0.0
 lightgbm==4.7.0
 plotly==7.1.0
 dash==4.4.1

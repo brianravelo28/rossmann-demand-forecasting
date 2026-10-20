@@ -1,11 +1,14 @@
-pandas
-numpy
-lightgbm
-statsmodels
-pmdarima
-plotly
-pyarrow
-dash
-scikit-learn
-shap
-matplotlib
+# Full (training) dependencies. Pinned to the versions the project was last tested on, on Python 3.14.
+# The hosted dashboard needs only requirements-render.txt.
+pandas==3.0.6
+numpy==2.5.4
+pyarrow==26.0.0
+lightgbm==4.7.0
+plotly==7.1.0
+dash==4.4.1
+statsmodels==0.15.0
+pmdarima==2.1.1
+scikit-learn==1.9.1
+shap==0.54.1
+matplotlib==3.11.2
+pytest==9.1.1
