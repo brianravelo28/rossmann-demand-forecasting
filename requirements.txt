@@ -1,6 +1,6 @@
 # Full (training) dependencies. Pinned to the versions the project was last tested on, on Python 3.14.
 # The hosted dashboard needs only requirements-render.txt.
-pandas==3.0.6
+pandas==3.1.0
 numpy==2.5.4
 pyarrow==26.0.0
 lightgbm==4.7.0
