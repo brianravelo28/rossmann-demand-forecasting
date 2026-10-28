@@ -216,7 +216,7 @@ def static_lookup_baseline(df, split_date="2015-01-01", store_id=1):
     model. (The ARIMA baseline above is a weak reference: it goes flat after 5 days.)"""
     split = pd.Timestamp(split_date)
     d = df[df["Sales"] > 0].copy()
-    d["_dow"] = d["Date"].dt.dayofweek
+    d["_dow"] = d["Date"].dt.day_of_week
     means = (
         d[d["Date"] < split]
         .groupby(["Store", "_dow", "Promo_active"])["Sales"].mean()

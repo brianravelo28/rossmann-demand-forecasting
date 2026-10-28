@@ -21,10 +21,10 @@ def make_history(stores=(1, 2), start="2014-01-01", days=90, seed=0):
     for s in stores:
         d = pd.DataFrame({"Date": pd.date_range(start, periods=days, freq="D")})
         d["Store"] = s
-        d["DayOfWeek"] = d["Date"].dt.dayofweek + 1
+        d["DayOfWeek"] = d["Date"].dt.day_of_week + 1
         d["Open"] = (d["DayOfWeek"] != 7).astype(int)
         d["Sales"] = np.where(d["Open"] == 1, rng.integers(1000, 9000, days), 0)
-        d["Promo"] = ((d["Date"].dt.dayofweek < 5) & (d["Date"].dt.isocalendar().week % 2 == 0)).astype(int)
+        d["Promo"] = ((d["Date"].dt.day_of_week < 5) & (d["Date"].dt.isocalendar().week % 2 == 0)).astype(int)
         d["StateHoliday"] = "0"
         d["SchoolHoliday"] = 0
         d["StoreType"], d["Assortment"] = "a", "a"
@@ -96,7 +96,7 @@ def test_no_feature_uses_sales_from_the_row_date_or_later():
 def test_output_has_open_days_only_and_all_model_features():
     feats = engineer_features(make_history())
     assert (feats["Open"] == 1).all()
-    assert not feats.Date.dt.dayofweek.eq(6).any()  # Sundays are closed in the synthetic data
+    assert not feats.Date.dt.day_of_week.eq(6).any()  # Sundays are closed in the synthetic data
     missing = [c for c in FEATURE_COLS if c not in feats.columns]
     assert not missing
     assert not feats[FEATURE_COLS].isna().any().any()

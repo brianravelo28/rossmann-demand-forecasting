@@ -126,7 +126,7 @@ def add_promo2_active_feature(df, date_col="Date"):
 
     month_abbr = df[date_col].dt.month.map(_MONTH_ABBR)
     # The source data spells September "Sept"; normalize so it matches _MONTH_ABBR.
-    interval_lists = df["PromoInterval"].fillna("").str.replace("Sept", "Sep").str.split(",")
+    interval_lists = df["PromoInterval"].astype("object").fillna("").str.replace("Sept", "Sep").str.split(",")
     in_interval = pd.Series(
         [abbr in lst for abbr, lst in zip(month_abbr, interval_lists)], index=df.index
     )
