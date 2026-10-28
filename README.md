@@ -4,7 +4,7 @@
 
 ![Rossmann Demand Forecasting dashboard](docs/screenshot.png)
 
-One LightGBM model that forecasts daily sales for all 1,115 Rossmann drugstores, built on the public Kaggle
+One LightGBM model (gradient-boosted decision trees) that forecasts daily sales for all 1,115 Rossmann drugstores, built on the public Kaggle
 *Rossmann Store Sales* data (Jan 2013–Jul 2015), with an interactive dashboard. It is written for hiring managers and
 technical readers who want to see how the forecasts were built and how far they can be trusted. With it you can compare
 predictions with actual sales for any store, see where the model is weakest, test a "what if this store ran a
@@ -31,7 +31,7 @@ on January–July 2015, data the model was not trained on:
 - **Treat 9.15% as mildly optimistic.** The January–July 2015 data was never trained on, but its score was checked while
   features were being chosen. The 2014 walk-forward cross-validation, with a mean MAPE of 10.0% (folds between 8.9%
   and 11.1%), is the cleaner estimate. See [Methodology](docs/METHODOLOGY.md#2-validation-design).
-- A classical ARIMA model reaches 17.2% on Store 1, but it is a weak reference: it forecasts a constant after five days
+- ARIMA (AutoRegressive Integrated Moving Average, a classical single-series method) reaches 17.2% on Store 1, but it is a weak reference: it forecasts a constant after five days
   and gets no new information, so beating it says little.
 
 ## Dashboard
