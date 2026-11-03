@@ -11,4 +11,4 @@ pmdarima==2.1.1
 scikit-learn==1.9.1
 shap==0.54.1
 matplotlib==3.11.2
-pytest==9.1.1
+pytest==9.2.0
