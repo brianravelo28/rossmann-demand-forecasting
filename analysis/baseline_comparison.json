@@ -1,0 +1,27 @@
+{
+  "window": "2015-07-01 to 2015-07-31",
+  "stores": 143,
+  "store_days_scored": 3873,
+  "store_days_dropped_no_forecast": 0,
+  "sarimax_failed_stores": [
+    126,
+    267,
+    299,
+    532,
+    663,
+    681,
+    764
+  ],
+  "mape": {
+    "naive_4wk": 16.83,
+    "lookup": 11.0,
+    "sarimax": 13.26,
+    "lightgbm_recursive": 10.34,
+    "lightgbm_one_step": 8.83
+  },
+  "share_of_stores_where_lightgbm_recursive_beats": {
+    "naive_4wk": 98.6,
+    "lookup": 39.2,
+    "sarimax": 82.5
+  }
+}
